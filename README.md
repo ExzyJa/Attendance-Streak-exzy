@@ -1,0 +1,113 @@
+# Attendance Streak Bot
+
+Posts a daily "who's online today" message with a ✅ reaction, and tracks each
+user's consecutive-day streak. `/streaks` shows a leaderboard (name + 🔥
+streak), like the Accepted list in your screenshot, instead of editing
+nicknames.
+
+## How it works
+
+- You configure a channel + time (+ timezone) once with `/setup-attendance`.
+- Every day at that time, the bot posts a fresh embed and reacts ✅ to it.
+- When someone reacts ✅ **on that day's message**, the bot checks their last
+  attendance date:
+  - Yesterday → streak +1
+  - Today already recorded → no change (can't double-count)
+  - Anything older / never → streak resets to 1
+- `/streaks` posts a leaderboard sorted by current streak.
+- `/my-streak` privately tells a user their own streak.
+
+Old reactions on yesterday's (or older) messages are ignored — only the
+currently active post counts, so people can't farm streaks by reacting on old
+messages.
+
+## Setup
+
+### 1. Create the Discord application/bot
+
+1. Go to https://discord.com/developers/applications → **New Application**.
+2. **Bot** tab → **Add Bot** → copy the **Token** (this is `DISCORD_TOKEN`).
+3. Under **Privileged Gateway Intents**, enable **Server Members Intent**
+   (needed to show display names on the leaderboard).
+4. **OAuth2 → General**, copy the **Application ID** (this is `CLIENT_ID`).
+5. **OAuth2 → URL Generator**: scopes `bot` + `applications.commands`;
+   bot permissions: `Send Messages`, `Embed Links`, `Add Reactions`,
+   `Read Message History`, `Mention Everyone` (only if you want the
+   `@everyone` ping — remove it from `attendance.js` if not).
+6. Open the generated URL to invite the bot to your server.
+
+### 2. Install & configure on your VPS
+
+```bash
+git clone <this-folder-or-your-repo>
+cd attendance-bot
+npm install
+cp .env.example .env
+# edit .env and fill in DISCORD_TOKEN and CLIENT_ID
+```
+
+### 3. Register the slash commands (one-time, or after changing them)
+
+```bash
+npm run deploy-commands
+```
+
+### 4. Run the bot
+
+```bash
+npm start
+```
+
+For production, keep it alive with a process manager, e.g.:
+
+```bash
+npm install -g pm2
+pm2 start index.js --name attendance-bot
+pm2 save
+```
+
+## Deploying on Railway (instead of your own VPS)
+
+Railway runs the bot as a persistent process, which is what this bot needs
+(it holds a live connection to Discord, not just occasional HTTP requests).
+The code already includes a tiny built-in HTTP server so Railway's health
+checks pass, and reads `DB_PATH`/`PORT` from the environment automatically.
+
+1. Push this project to a GitHub repo (`git init && git add . && git commit -m "init"`,
+   create a repo on GitHub, `git remote add origin <url> && git push -u origin main`).
+2. On https://railway.app: **New Project → Deploy from GitHub repo** → pick the repo.
+   Railway auto-detects it as a Node app via `package.json`.
+3. Open the service → **Variables** → add `DISCORD_TOKEN` and `CLIENT_ID`.
+4. Open the service → **Volumes** → create a volume, mount it at `/data`.
+   Then add a variable `DB_PATH=/data/attendance.sqlite` so streak data
+   survives redeploys instead of getting wiped.
+5. Register slash commands **once**, from your own machine (not on Railway):
+   set the same `DISCORD_TOKEN`/`CLIENT_ID` in a local `.env` and run
+   `npm run deploy-commands`.
+6. Check **Deployments → Logs** for `Logged in as YourBot#1234`.
+7. In Discord, run `/setup-attendance`, then `/post-attendance-now` to test.
+
+Note on Replit: Replit's free tier sleeps when idle, which breaks both the
+daily cron post and the always-on reaction listener. If you want to use
+Replit anyway, you'd need an "Always On" paid plan (or Replit's Reserved VM),
+otherwise the bot effectively goes offline between visits.
+
+## Commands
+
+| Command | Who | Description |
+|---|---|---|
+| `/setup-attendance channel time [timezone] [title] [message]` | Manage Server perm | Configure/reconfigure the daily post. `time` is 24h `HH:MM`. `timezone` is an IANA name like `Asia/Manila` (defaults to UTC). |
+| `/post-attendance-now` | Anyone with access | Posts today's attendance message immediately (good for testing). |
+| `/streaks` | Anyone | Leaderboard embed of everyone's current streak. |
+| `/my-streak` | Anyone | Private reply with your own current/best streak. |
+
+## Notes
+
+- Data is stored locally in `attendance.sqlite` (created automatically) —
+  back that file up if you care about streak history.
+- Only the ✅ emoji counts toward streaks; you can still let people react
+  ❌/❓ for informational purposes by adding more `message.react(...)` calls
+  in `attendance.js`, they just won't affect the streak.
+- Multiple servers are supported — each guild has its own config and its own
+  streak table.
+- To change the daily time later, just run `/setup-attendance` again.
