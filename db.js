@@ -52,22 +52,30 @@ function ensureColumn(table, col, decl) {
 ensureColumn('streaks', 'shields_used', 'INTEGER NOT NULL DEFAULT 0');
 ensureColumn('streaks', 'shields_month', "TEXT NOT NULL DEFAULT ''");
 ensureColumn('streaks', 'shielded_date', 'TEXT');
+// Tracks the guild-local calendar date (YYYY-MM-DD) this config was last
+// created/edited. Used by catchUpMissedPosts() so it doesn't fire an
+// immediate "missed post" catch-up the same day someone just ran
+// /setup-attendance — every schedule time technically "already passed"
+// on its own creation day, so without this, every fresh setup (or any
+// restart later that same day) triggers an instant extra post.
+ensureColumn('config', 'configured_date', "TEXT NOT NULL DEFAULT ''");
 
 const MAX_SHIELDS = 3;
 
 // ---- config ----
-function setConfig(guildId, { channelId, hour, minute, timezone, title, body }) {
+function setConfig(guildId, { channelId, hour, minute, timezone, title, body, configuredDate }) {
   db.prepare(`
-    INSERT INTO config (guild_id, channel_id, hour, minute, timezone, title, body)
-    VALUES (@guildId, @channelId, @hour, @minute, @timezone, @title, @body)
+    INSERT INTO config (guild_id, channel_id, hour, minute, timezone, title, body, configured_date)
+    VALUES (@guildId, @channelId, @hour, @minute, @timezone, @title, @body, @configuredDate)
     ON CONFLICT(guild_id) DO UPDATE SET
       channel_id = excluded.channel_id,
       hour = excluded.hour,
       minute = excluded.minute,
       timezone = excluded.timezone,
       title = excluded.title,
-      body = excluded.body
-  `).run({ guildId, channelId, hour, minute, timezone, title, body });
+      body = excluded.body,
+      configured_date = excluded.configured_date
+  `).run({ guildId, channelId, hour, minute, timezone, title, body, configuredDate });
 }
 
 function getConfig(guildId) {
