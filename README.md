@@ -8,18 +8,37 @@ nicknames.
 ## How it works
 
 - You configure a channel + time (+ timezone) once with `/setup-attendance`.
+  That time is also the daily "midnight" boundary for streaks and shields.
 - Every day at that time, the bot posts a fresh embed and reacts ✅ to it.
+  The post itself shows a **live, growing list of names** as people react —
+  no need to run `/streaks` just to see who's checked in today.
 - When someone reacts ✅ **on that day's message**, the bot checks their last
   attendance date:
-  - Yesterday → streak +1
+  - Yesterday (or a shield-covered yesterday, see below) → streak +1
   - Today already recorded → no change (can't double-count)
   - Anything older / never → streak resets to 1
 - `/streaks` posts a leaderboard sorted by current streak.
-- `/my-streak` privately tells a user their own streak.
+- `/my-streak` privately tells a user their own streak and shields left.
 
 Old reactions on yesterday's (or older) messages are ignored — only the
 currently active post counts, so people can't farm streaks by reacting on old
 messages.
+
+### Shields (3 per user, per calendar month)
+
+Right before posting each new day's message, the bot finalizes the previous
+day for everyone with an active streak who never reacted:
+
+- **Missed exactly one day** and still have a shield left this month →
+  the shield auto-applies. Their streak is **not** reset — it's just paused
+  (shown with a 🛡️ in `/streaks`) — and picks back up normally the next time
+  they react.
+- **Missed two days in a row** → the shield does *not* cover the second
+  missed day, even if shields remain. The streak resets to 0.
+- **No shields left this month** → any missed day resets the streak to 0.
+
+Shields refill to 3 at the start of each calendar month. `/my-streak` shows
+how many a user has left.
 
 ## Setup
 
