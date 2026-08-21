@@ -92,6 +92,16 @@ async function catchUpMissedPosts(configs) {
       const active = db.getActiveMessage(config.guild_id);
       if (active && active.attendance_date === dateStr) continue; // already posted today
 
+      // Don't catch up on the same guild-local day the schedule was just
+      // created/edited — the schedule's very first occurrence hasn't
+      // happened yet from the user's perspective, even though the clock
+      // time technically "already passed" earlier today. Real misses on
+      // later days still get caught normally.
+      if (config.configured_date === dateStr) {
+        console.log(`[catchup] Guild ${config.guild_id} config set today — skipping catch-up, waiting for next scheduled run.`);
+        continue;
+      }
+
       const nowMinutes = minutesSinceMidnight(config.timezone);
       const scheduledMinutes = config.hour * 60 + config.minute;
       if (nowMinutes >= scheduledMinutes) {
@@ -143,7 +153,7 @@ client.on(Events.InteractionCreate, async interaction => {
         return interaction.reply({ content: `"${timezone}" isn't a valid IANA timezone (e.g. Asia/Manila, America/New_York).`, ephemeral: true });
       }
 
-      const config = { channelId: channel.id, hour, minute, timezone, title, body };
+      const config = { channelId: channel.id, hour, minute, timezone, title, body, configuredDate: todayStr(timezone) };
       db.setConfig(interaction.guildId, config);
       scheduleGuild({ guild_id: interaction.guildId, channel_id: channel.id, hour, minute, timezone, title, body });
 
