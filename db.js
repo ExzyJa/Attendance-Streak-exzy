@@ -33,7 +33,27 @@ db.exec(`
     last_date TEXT,
     PRIMARY KEY (guild_id, user_id)
   );
+
+  CREATE TABLE IF NOT EXISTS daily_checkins (
+    guild_id TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    date TEXT NOT NULL,
+    PRIMARY KEY (guild_id, user_id, date)
+  );
 `);
+
+// ---- lightweight migration: add shield columns to older DBs without them ----
+function ensureColumn(table, col, decl) {
+  const cols = db.prepare(`PRAGMA table_info(${table})`).all().map(c => c.name);
+  if (!cols.includes(col)) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${decl}`);
+  }
+}
+ensureColumn('streaks', 'shields_used', 'INTEGER NOT NULL DEFAULT 0');
+ensureColumn('streaks', 'shields_month', "TEXT NOT NULL DEFAULT ''");
+ensureColumn('streaks', 'shielded_date', 'TEXT');
+
+const MAX_SHIELDS = 3;
 
 // ---- config ----
 function setConfig(guildId, { channelId, hour, minute, timezone, title, body }) {
@@ -74,6 +94,31 @@ function getActiveMessage(guildId) {
   return db.prepare('SELECT * FROM active_messages WHERE guild_id = ?').get(guildId);
 }
 
+// ---- daily check-ins (who reacted ✅ on a given date — drives the live list on the post) ----
+/**
+ * Records that a user checked in on a given date.
+ * Returns true if this is a NEW check-in (first ✅ today), false if they'd
+ * already checked in (e.g. duplicate event) — caller should skip streak
+ * processing on `false` to avoid double-counting.
+ */
+function recordCheckin(guildId, userId, dateStr) {
+  const res = db.prepare(`
+    INSERT OR IGNORE INTO daily_checkins (guild_id, user_id, date) VALUES (?, ?, ?)
+  `).run(guildId, userId, dateStr);
+  return res.changes > 0;
+}
+
+function removeCheckin(guildId, userId, dateStr) {
+  db.prepare('DELETE FROM daily_checkins WHERE guild_id = ? AND user_id = ? AND date = ?')
+    .run(guildId, userId, dateStr);
+}
+
+function getCheckins(guildId, dateStr) {
+  return db.prepare('SELECT user_id FROM daily_checkins WHERE guild_id = ? AND date = ?')
+    .all(guildId, dateStr)
+    .map(r => r.user_id);
+}
+
 // ---- streaks ----
 function getStreak(guildId, userId) {
   return db.prepare('SELECT * FROM streaks WHERE guild_id = ? AND user_id = ?').get(guildId, userId);
@@ -89,48 +134,120 @@ function getLeaderboard(guildId, limit = 25) {
 }
 
 /**
- * Record attendance for a user for a given date (YYYY-MM-DD string, in the guild's configured timezone).
- * Returns the updated streak row plus whether it was a new record-in / already-recorded / streak-continued.
+ * Shields remaining for a user this calendar month (accounts for the lazy
+ * monthly reset — shields_used only actually resets in the DB the next time
+ * processAbsences touches that row, so we compute the "effective" count here
+ * for display purposes without needing to write anything).
  */
-function recordAttendance(guildId, userId, todayStr, yesterdayStr) {
+function shieldsRemaining(row, monthKey) {
+  if (!row) return MAX_SHIELDS;
+  const used = row.shields_month === monthKey ? row.shields_used : 0;
+  return Math.max(0, MAX_SHIELDS - used);
+}
+
+/**
+ * Record attendance for a user for a given date (YYYY-MM-DD string, in the guild's configured timezone).
+ * `todayStr` here is a date string (param name kept for backward-compat), not a function.
+ */
+function recordAttendance(guildId, userId, todayDateStr, yesterdayDateStr) {
   const existing = getStreak(guildId, userId);
 
   if (!existing) {
-    const row = { current_streak: 1, longest_streak: 1, last_date: todayStr };
     db.prepare(`
       INSERT INTO streaks (guild_id, user_id, current_streak, longest_streak, last_date)
       VALUES (?, ?, 1, 1, ?)
-    `).run(guildId, userId, todayStr);
-    return { status: 'new', ...row };
+    `).run(guildId, userId, todayDateStr);
+    return { status: 'new', current_streak: 1, longest_streak: 1 };
   }
 
-  if (existing.last_date === todayStr) {
-    return { status: 'already_recorded', ...existing };
+  if (existing.last_date === todayDateStr) {
+    return { status: 'already_recorded', current_streak: existing.current_streak, longest_streak: existing.longest_streak };
   }
 
   let newStreak;
-  if (existing.last_date === yesterdayStr) {
+  if (existing.last_date === yesterdayDateStr) {
+    // Continues normally — this also covers the case where yesterday was a
+    // shield-covered absence, since processAbsences() sets last_date to that
+    // absent date for shielded users.
     newStreak = existing.current_streak + 1;
   } else {
-    newStreak = 1; // missed a day (or more) — streak resets
+    newStreak = 1; // real gap — streak resets
   }
   const newLongest = Math.max(existing.longest_streak, newStreak);
 
   db.prepare(`
-    UPDATE streaks SET current_streak = ?, longest_streak = ?, last_date = ?
+    UPDATE streaks SET current_streak = ?, longest_streak = ?, last_date = ?, shielded_date = NULL
     WHERE guild_id = ? AND user_id = ?
-  `).run(newStreak, newLongest, todayStr, guildId, userId);
+  `).run(newStreak, newLongest, todayDateStr, guildId, userId);
 
-  return { status: 'updated', current_streak: newStreak, longest_streak: newLongest, last_date: todayStr };
+  return { status: 'updated', current_streak: newStreak, longest_streak: newLongest };
+}
+
+/**
+ * Nightly job: finalize everyone who did NOT check in on `dateStr`.
+ *
+ * Rules:
+ *  - If they were absent for a single isolated day and have a shield left
+ *    this month (max 3), the shield auto-applies: their streak is preserved
+ *    (not incremented, not reset), that date is marked as "shielded", and
+ *    `last_date` is bumped to that date so their streak continues normally
+ *    the next time they check in.
+ *  - If the immediately preceding date was ALSO a shielded absence (i.e.
+ *    this is their 2nd absence in a row), shields cannot cover it — the
+ *    streak resets to 0, even if shields remain.
+ *  - If they have no shields left this month, the streak resets to 0.
+ *
+ * `dateStr` = the day that just ended. `prevDateStr` = the day before that.
+ * `monthKey` = YYYY-MM of `dateStr`, used for the monthly shield reset.
+ */
+function processAbsences(guildId, dateStr, prevDateStr, monthKey) {
+  const rows = db.prepare(`
+    SELECT * FROM streaks WHERE guild_id = ? AND current_streak > 0
+  `).all(guildId);
+
+  const checkedIn = new Set(getCheckins(guildId, dateStr));
+  const results = [];
+
+  for (const row of rows) {
+    if (checkedIn.has(row.user_id)) continue; // present — nothing to finalize
+    if (row.last_date === dateStr) continue;   // already accounted for today
+
+    const shieldsUsed = row.shields_month === monthKey ? row.shields_used : 0;
+    const consecutiveAbsence = row.shielded_date === prevDateStr;
+
+    if (!consecutiveAbsence && shieldsUsed < MAX_SHIELDS) {
+      db.prepare(`
+        UPDATE streaks
+        SET shields_used = ?, shields_month = ?, shielded_date = ?, last_date = ?
+        WHERE guild_id = ? AND user_id = ?
+      `).run(shieldsUsed + 1, monthKey, dateStr, dateStr, guildId, row.user_id);
+      results.push({ userId: row.user_id, status: 'shielded', streak: row.current_streak, shieldsLeft: MAX_SHIELDS - (shieldsUsed + 1) });
+    } else {
+      db.prepare(`
+        UPDATE streaks
+        SET current_streak = 0, shielded_date = NULL, shields_used = ?, shields_month = ?
+        WHERE guild_id = ? AND user_id = ?
+      `).run(shieldsUsed, monthKey, guildId, row.user_id);
+      results.push({ userId: row.user_id, status: 'reset', previousStreak: row.current_streak });
+    }
+  }
+
+  return results;
 }
 
 module.exports = {
+  MAX_SHIELDS,
   setConfig,
   getConfig,
   getAllConfigs,
   setActiveMessage,
   getActiveMessage,
+  recordCheckin,
+  removeCheckin,
+  getCheckins,
   getStreak,
   getLeaderboard,
+  shieldsRemaining,
   recordAttendance,
+  processAbsences,
 };
