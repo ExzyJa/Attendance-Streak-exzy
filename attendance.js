@@ -1,14 +1,31 @@
 const { EmbedBuilder } = require('discord.js');
 const db = require('./db');
-const { todayStr, dateStrPlusDays, monthStr } = require('./utils');
+const { todayStr, dateStrPlusDays, monthStr, getStreakTier, getFireIcon, ANSI_RESET } = require('./utils');
 
 const CHECK_EMOJI = '✅';
+const SHIELD_EMOJI = '🛡️';
+
+/**
+ * Renders one line of the live checked-in list: name, fire icon + streak
+ * (colored by tier via a ```ansi code block — desktop/web only, Discord
+ * doesn't support colored text on mobile), and shields remaining.
+ */
+function renderCheckinLine({ name, streak, shieldsLeft }) {
+  const tier = getStreakTier(streak);
+  const fire = getFireIcon(tier);
+  const streakPart = streak > 0 ? ` ${tier.ansi}${fire}${streak}${ANSI_RESET}` : '';
+  const shieldPart = streak > 0 ? ` ${SHIELD_EMOJI}${shieldsLeft}` : '';
+  return `${name}${streakPart}${shieldPart}`;
+}
 
 /**
  * Builds the daily attendance embed, including a live list of who has
- * checked in so far today (names passed in, already resolved by the caller).
+ * checked in so far today. `entries` is an array of
+ * { name, streak, shieldsLeft } already resolved by the caller, so every
+ * reactor sees their fire streak + shields left right on the post — no
+ * need to run /my-streak.
  */
-function buildDailyEmbed(guildConfig, dateStr, names) {
+function buildDailyEmbed(guildConfig, dateStr, entries) {
   const embed = new EmbedBuilder()
     .setColor(0xf1c40f)
     .setTitle(guildConfig.title)
@@ -16,9 +33,14 @@ function buildDailyEmbed(guildConfig, dateStr, names) {
     .setFooter({ text: 'React with ✅ to check in today' })
     .setTimestamp(new Date());
 
+  const lines = entries.map(renderCheckinLine);
+  const body = lines.length
+    ? '```ansi\n' + lines.join('\n') + '\n```'
+    : '_No one yet — be the first!_';
+
   embed.addFields({
-    name: `✅ Checked in (${names.length})`,
-    value: names.length ? names.join('\n') : '_No one yet — be the first!_',
+    name: `✅ Checked in (${entries.length})`,
+    value: body,
   });
 
   return embed;
@@ -78,17 +100,19 @@ async function buildLeaderboardEmbed(guild, limit = 25) {
       const member = await guild.members.fetch(row.user_id).catch(() => null);
       const name = member ? member.displayName : `Unknown user (${row.user_id})`;
       const shieldsLeft = db.shieldsRemaining(row, currentMonth);
+      const tier = getStreakTier(row.current_streak);
+      const fire = getFireIcon(tier);
 
       if (row.shielded_date) {
         // Currently sitting on an auto-shielded absence, waiting for them to check back in.
-        return `**${i + 1}.** ${name} — 🛡️ streak paused (🔥 ${row.current_streak} kept, ${shieldsLeft} shield${shieldsLeft === 1 ? '' : 's'} left)`;
+        return `${i + 1}. ${name} ${SHIELD_EMOJI} streak paused (${tier.ansi}${fire}${row.current_streak}${ANSI_RESET} kept, ${shieldsLeft} shield${shieldsLeft === 1 ? '' : 's'} left)`;
       }
-      return `**${i + 1}.** ${name} — 🔥 ${row.current_streak} day${row.current_streak === 1 ? '' : 's'} (best: ${row.longest_streak}, ${shieldsLeft} shield${shieldsLeft === 1 ? '' : 's'} left)`;
+      return `${i + 1}. ${name} — ${tier.ansi}${fire}${row.current_streak}${ANSI_RESET} day${row.current_streak === 1 ? '' : 's'} (best: ${row.longest_streak}, ${SHIELD_EMOJI}${shieldsLeft} left)`;
     })
   );
 
-  embed.setDescription(lines.join('\n'));
+  embed.setDescription('```ansi\n' + lines.join('\n') + '\n```');
   return embed;
 }
 
-module.exports = { postAttendance, buildLeaderboardEmbed, buildDailyEmbed, CHECK_EMOJI };
+module.exports = { postAttendance, buildLeaderboardEmbed, buildDailyEmbed, CHECK_EMOJI, SHIELD_EMOJI };
