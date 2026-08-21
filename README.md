@@ -11,7 +11,9 @@ nicknames.
   That time is also the daily "midnight" boundary for streaks and shields.
 - Every day at that time, the bot posts a fresh embed and reacts ✅ to it.
   The post itself shows a **live, growing list of names** as people react —
-  no need to run `/streaks` just to see who's checked in today.
+  each name shows their current 🔥 streak and 🛡️ shields left **right on
+  the post**, so nobody needs to run `/streaks` or `/my-streak` just to see
+  who's checked in or how they're doing.
 - When someone reacts ✅ **on that day's message**, the bot checks their last
   attendance date:
   - Yesterday (or a shield-covered yesterday, see below) → streak +1
@@ -39,6 +41,53 @@ day for everyone with an active streak who never reacted:
 
 Shields refill to 3 at the start of each calendar month. `/my-streak` shows
 how many a user has left.
+
+### Fire streak tiers & colors
+
+The 🔥 next to each name is colored by streak length, using Discord's
+` ```ansi ` code-block trick:
+
+| Streak | Color |
+|---|---|
+| 1–29 | Classic (yellow/orange) |
+| 30–59 | Blue |
+| 60–99 | Violet |
+| 100–199 | Purple-Red |
+| 200+ | Black-Purple |
+
+**Two things to know:**
+
+1. **Colored text only renders on Discord desktop and web.** The mobile
+   apps show the raw text without color — this is a Discord client
+   limitation, not something a bot can fix.
+2. **True animated fire** isn't something Discord lets a bot inline as
+   arbitrary text — only a real *custom emoji* uploaded to a server the bot
+   is in can be animated. By default the bot uses a static 🔥. If you want
+   an actual animated fire per tier, upload animated emoji to your server
+   (or a server the bot shares) and set these optional env vars to their
+   emoji code (e.g. `<a:fire_blue:123456789012345678>` — copy it in Discord
+   by typing `\:emoji_name:` and sending it, or via Server Settings → Emoji):
+
+   ```
+   FIRE_EMOJI_DEFAULT=
+   FIRE_EMOJI_BLUE=
+   FIRE_EMOJI_VIOLET=
+   FIRE_EMOJI_PURPLE_RED=
+   FIRE_EMOJI_BLACK_PURPLE=
+   ```
+
+   Any tier left unset just falls back to 🔥.
+
+### Reliable daily posting (no manual trigger needed)
+
+Once `/setup-attendance` has been run, the bot schedules a daily cron job
+per server and posts automatically at that time going forward — you never
+need to type `/post-attendance-now` again. On top of that, every time the
+bot starts up (first boot, or after a Railway redeploy/restart) it checks:
+if today's scheduled time has already passed and today's post hasn't gone
+out yet, it posts immediately as a catch-up. This covers the edge case
+where the bot happened to be restarting at the exact scheduled minute and
+would otherwise have silently skipped that day.
 
 ## Setup
 
