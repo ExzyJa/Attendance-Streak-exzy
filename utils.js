@@ -17,11 +17,27 @@ function todayStr(timezone) {
   return dateStrInTz(new Date(), timezone);
 }
 
-function yesterdayStr(timezone) {
-  // Get "now" in the target tz, subtract a day, then re-format in that tz.
-  const now = new Date();
-  const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-  return dateStrInTz(yesterday, timezone);
+/**
+ * Shifts a YYYY-MM-DD calendar-date string by `delta` days (can be negative).
+ * Pure calendar math — pins to UTC noon internally so it's immune to DST shifts.
+ */
+function dateStrPlusDays(dateStr, delta) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
+  dt.setUTCDate(dt.getUTCDate() + delta);
+  return dt.toISOString().slice(0, 10);
 }
 
-module.exports = { dateStrInTz, todayStr, yesterdayStr };
+function yesterdayStr(timezone) {
+  return dateStrPlusDays(todayStr(timezone), -1);
+}
+
+/**
+ * Returns the YYYY-MM portion of a YYYY-MM-DD string — used as the monthly
+ * bucket key for resetting each user's 3 shields.
+ */
+function monthStr(dateStr) {
+  return dateStr.slice(0, 7);
+}
+
+module.exports = { dateStrInTz, todayStr, yesterdayStr, dateStrPlusDays, monthStr };
