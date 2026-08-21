@@ -22,7 +22,7 @@ http
 
 const db = require('./db');
 const { postAttendance, buildLeaderboardEmbed, buildDailyEmbed, CHECK_EMOJI } = require('./attendance');
-const { todayStr, yesterdayStr, monthStr } = require('./utils');
+const { todayStr, yesterdayStr, monthStr, minutesSinceMidnight } = require('./utils');
 
 const client = new Client({
   intents: [
@@ -57,25 +57,58 @@ function scheduleGuild(config) {
 }
 
 // Re-renders the "Checked in (N)" list on today's attendance post to reflect
-// current reactions. Called after every add/remove.
+// current reactions — including each person's fire streak + shields left,
+// so nobody needs to run /my-streak just to see it. Called after every add/remove.
 async function refreshAttendanceEmbed(message, config, guildId, dateStr) {
   const userIds = db.getCheckins(guildId, dateStr);
   const guild = message.guild;
-  const names = [];
+  const currentMonth = monthStr(dateStr);
+  const entries = [];
   for (const uid of userIds) {
     const member = await guild.members.fetch(uid).catch(() => null);
-    names.push(member ? member.displayName : `Unknown user (${uid})`);
+    const name = member ? member.displayName : `Unknown user (${uid})`;
+    const row = db.getStreak(guildId, uid);
+    const streak = row ? row.current_streak : 0;
+    const shieldsLeft = db.shieldsRemaining(row, currentMonth);
+    entries.push({ name, streak, shieldsLeft });
   }
-  const embed = buildDailyEmbed(config, dateStr, names);
+  const embed = buildDailyEmbed(config, dateStr, entries);
   await message.edit({ embeds: [embed] }).catch(err =>
     console.error('[embed] failed to refresh attendance post:', err)
   );
 }
 
-client.once(Events.ClientReady, () => {
+// If the bot was offline at the exact scheduled minute (redeploy, restart,
+// brief outage, etc.), node-cron's tick is simply missed and nothing posts
+// until the *next* day. This catches that up on boot: for each guild, if
+// today's post hasn't gone out yet and the scheduled time has already
+// passed for today, post immediately — so the daily message + streak reset
+// still happens automatically without anyone needing to run
+// /post-attendance-now by hand.
+async function catchUpMissedPosts(configs) {
+  for (const config of configs) {
+    try {
+      const dateStr = todayStr(config.timezone);
+      const active = db.getActiveMessage(config.guild_id);
+      if (active && active.attendance_date === dateStr) continue; // already posted today
+
+      const nowMinutes = minutesSinceMidnight(config.timezone);
+      const scheduledMinutes = config.hour * 60 + config.minute;
+      if (nowMinutes >= scheduledMinutes) {
+        console.log(`[catchup] Guild ${config.guild_id} missed today's ${config.hour}:${String(config.minute).padStart(2, '0')} post — posting now.`);
+        await postAttendance(client, config);
+      }
+    } catch (err) {
+      console.error(`[catchup] Failed for guild ${config.guild_id}:`, err);
+    }
+  }
+}
+
+client.once(Events.ClientReady, async () => {
   console.log(`Logged in as ${client.user.tag}`);
   const configs = db.getAllConfigs();
   configs.forEach(scheduleGuild);
+  await catchUpMissedPosts(configs);
 });
 
 client.on(Events.InteractionCreate, async interaction => {
