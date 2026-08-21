@@ -13,8 +13,8 @@ const SHIELD_EMOJI = '🛡️';
 function renderCheckinLine({ name, streak, shieldsLeft }) {
   const tier = getStreakTier(streak);
   const fire = getFireIcon(tier);
-  const streakPart = streak > 0 ? ` ${tier.ansi}${fire}${streak}${ANSI_RESET}` : '';
-  const shieldPart = streak > 0 ? ` ${SHIELD_EMOJI}${shieldsLeft}` : '';
+  const streakPart = streak > 0 ? `   ${tier.ansi}${fire} ${streak}${ANSI_RESET}` : '';
+  const shieldPart = streak > 0 ? `   ${SHIELD_EMOJI} ${shieldsLeft}` : '';
   return `${name}${streakPart}${shieldPart}`;
 }
 
@@ -105,9 +105,9 @@ async function buildLeaderboardEmbed(guild, limit = 25) {
 
       if (row.shielded_date) {
         // Currently sitting on an auto-shielded absence, waiting for them to check back in.
-        return `${i + 1}. ${name} ${SHIELD_EMOJI} streak paused (${tier.ansi}${fire}${row.current_streak}${ANSI_RESET} kept, ${shieldsLeft} shield${shieldsLeft === 1 ? '' : 's'} left)`;
+        return `${i + 1}. ${name}   ${SHIELD_EMOJI} streak paused (${tier.ansi}${fire} ${row.current_streak}${ANSI_RESET} kept, ${shieldsLeft} shield${shieldsLeft === 1 ? '' : 's'} left)`;
       }
-      return `${i + 1}. ${name} — ${tier.ansi}${fire}${row.current_streak}${ANSI_RESET} day${row.current_streak === 1 ? '' : 's'} (best: ${row.longest_streak}, ${SHIELD_EMOJI}${shieldsLeft} left)`;
+      return `${i + 1}. ${name}   ${tier.ansi}${fire} ${row.current_streak}${ANSI_RESET} day${row.current_streak === 1 ? '' : 's'}   (best: ${row.longest_streak},  ${SHIELD_EMOJI} ${shieldsLeft} left)`;
     })
   );
 
