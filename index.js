@@ -21,8 +21,8 @@ http
   .listen(PORT, () => console.log(`[http] Health check server listening on port ${PORT}`));
 
 const db = require('./db');
-const { postAttendance, buildLeaderboardEmbed, CHECK_EMOJI } = require('./attendance');
-const { todayStr, yesterdayStr } = require('./utils');
+const { postAttendance, buildLeaderboardEmbed, buildDailyEmbed, CHECK_EMOJI } = require('./attendance');
+const { todayStr, yesterdayStr, monthStr } = require('./utils');
 
 const client = new Client({
   intents: [
@@ -54,6 +54,22 @@ function scheduleGuild(config) {
 
   scheduledTasks.set(config.guild_id, task);
   console.log(`[schedule] Guild ${config.guild_id} -> daily at ${config.hour}:${String(config.minute).padStart(2, '0')} (${config.timezone})`);
+}
+
+// Re-renders the "Checked in (N)" list on today's attendance post to reflect
+// current reactions. Called after every add/remove.
+async function refreshAttendanceEmbed(message, config, guildId, dateStr) {
+  const userIds = db.getCheckins(guildId, dateStr);
+  const guild = message.guild;
+  const names = [];
+  for (const uid of userIds) {
+    const member = await guild.members.fetch(uid).catch(() => null);
+    names.push(member ? member.displayName : `Unknown user (${uid})`);
+  }
+  const embed = buildDailyEmbed(config, dateStr, names);
+  await message.edit({ embeds: [embed] }).catch(err =>
+    console.error('[embed] failed to refresh attendance post:', err)
+  );
 }
 
 client.once(Events.ClientReady, () => {
@@ -99,7 +115,7 @@ client.on(Events.InteractionCreate, async interaction => {
       scheduleGuild({ guild_id: interaction.guildId, channel_id: channel.id, hour, minute, timezone, title, body });
 
       return interaction.reply({
-        content: `✅ Attendance will post daily in ${channel} at **${match[1].padStart(2, '0')}:${match[2]}** (${timezone}). Use \`/post-attendance-now\` to test it immediately.`,
+        content: `✅ Attendance will post daily in ${channel} at **${match[1].padStart(2, '0')}:${match[2]}** (${timezone}) — that time also acts as the daily reset ("midnight") for streaks and shields. Use \`/post-attendance-now\` to test it immediately.`,
         ephemeral: true,
       });
     }
@@ -124,8 +140,17 @@ client.on(Events.InteractionCreate, async interaction => {
       if (!row || row.current_streak === 0) {
         return interaction.reply({ content: "You don't have an active streak yet — react ✅ on today's attendance post!", ephemeral: true });
       }
+      const currentMonth = monthStr(todayStr('UTC'));
+      const shieldsLeft = db.shieldsRemaining(row, currentMonth);
+
+      if (row.shielded_date) {
+        return interaction.reply({
+          content: `🛡️ Your streak is currently **paused, not broken** — a shield auto-covered your last absence. You're still on a **${row.current_streak}-day** streak (best: ${row.longest_streak}). React ✅ next time to keep it going. Shields left this month: **${shieldsLeft}/${db.MAX_SHIELDS}**.`,
+          ephemeral: true,
+        });
+      }
       return interaction.reply({
-        content: `🔥 You're on a **${row.current_streak}-day** streak (best: ${row.longest_streak}).`,
+        content: `🔥 You're on a **${row.current_streak}-day** streak (best: ${row.longest_streak}). Shields left this month: **${shieldsLeft}/${db.MAX_SHIELDS}** (auto-used if you miss a single day).`,
         ephemeral: true,
       });
     }
@@ -156,13 +181,47 @@ client.on(Events.MessageReactionAdd, async (reaction, user) => {
 
     const today = todayStr(config.timezone);
     const yesterday = yesterdayStr(config.timezone);
-    const result = db.recordAttendance(guildId, user.id, today, yesterday);
 
+    const isNewCheckin = db.recordCheckin(guildId, user.id, today);
+    if (!isNewCheckin) return; // already checked in today — avoid double-counting
+
+    const result = db.recordAttendance(guildId, user.id, today, yesterday);
     if (result.status === 'updated' || result.status === 'new') {
       console.log(`[streak] ${user.tag} in guild ${guildId} -> ${result.current_streak} day streak`);
     }
+
+    await refreshAttendanceEmbed(reaction.message, config, guildId, today);
   } catch (err) {
     console.error('[reactionAdd] error:', err);
+  }
+});
+
+client.on(Events.MessageReactionRemove, async (reaction, user) => {
+  try {
+    if (user.bot) return;
+    if (reaction.partial) await reaction.fetch();
+    if (reaction.message.partial) await reaction.message.fetch();
+    if (reaction.emoji.name !== CHECK_EMOJI) return;
+
+    const guildId = reaction.message.guildId;
+    if (!guildId) return;
+
+    const config = db.getConfig(guildId);
+    const active = db.getActiveMessage(guildId);
+    if (!config || !active) return;
+    if (active.message_id !== reaction.message.id) return;
+
+    const today = todayStr(config.timezone);
+    db.removeCheckin(guildId, user.id, today);
+
+    // Note: this only removes them from today's visible list. It does NOT
+    // roll back a streak increment that already happened when they first
+    // reacted — if they un-react and never react again today, they'll still
+    // count as "checked in" for streak purposes but will show as absent
+    // tomorrow's list. This edge case is intentionally left simple.
+    await refreshAttendanceEmbed(reaction.message, config, guildId, today);
+  } catch (err) {
+    console.error('[reactionRemove] error:', err);
   }
 });
 
