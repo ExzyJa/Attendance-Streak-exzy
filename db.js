@@ -43,6 +43,13 @@ db.exec(`
     date TEXT NOT NULL,
     PRIMARY KEY (guild_id, user_id, date)
   );
+
+  CREATE TABLE IF NOT EXISTS role_snapshots (
+    guild_id TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    role_ids TEXT NOT NULL,
+    PRIMARY KEY (guild_id, user_id)
+  );
 `);
 
 // ---- lightweight migration: add shield columns to older DBs without them ----
@@ -136,6 +143,30 @@ function getCheckins(guildId, dateStr) {
   return db.prepare('SELECT user_id FROM daily_checkins WHERE guild_id = ? AND date = ?')
     .all(guildId, dateStr)
     .map(r => r.user_id);
+}
+
+function saveRoleSnapshot(guildId, userId, roleIds) {
+  db.prepare(`
+    INSERT INTO role_snapshots (guild_id, user_id, role_ids)
+    VALUES (?, ?, ?)
+    ON CONFLICT(guild_id, user_id) DO NOTHING
+  `).run(guildId, userId, JSON.stringify(roleIds));
+}
+
+function getRoleSnapshot(guildId, userId) {
+  const row = db.prepare('SELECT role_ids FROM role_snapshots WHERE guild_id = ? AND user_id = ?')
+    .get(guildId, userId);
+  if (!row) return null;
+  try {
+    return JSON.parse(row.role_ids);
+  } catch {
+    return null;
+  }
+}
+
+function removeRoleSnapshot(guildId, userId) {
+  db.prepare('DELETE FROM role_snapshots WHERE guild_id = ? AND user_id = ?')
+    .run(guildId, userId);
 }
 
 // ---- streaks ----
@@ -264,6 +295,9 @@ module.exports = {
   recordCheckin,
   removeCheckin,
   getCheckins,
+  saveRoleSnapshot,
+  getRoleSnapshot,
+  removeRoleSnapshot,
   getStreak,
   getLeaderboard,
   shieldsRemaining,

@@ -124,14 +124,44 @@ async function updateAttendanceRoles(member, config, inactive) {
 
   try {
     if (inactive) {
+      db.saveRoleSnapshot(
+        member.guild.id,
+        member.id,
+        member.roles.cache.filter(role => role.id !== member.guild.id && !role.managed).map(role => role.id)
+      );
       if (config.active_role_id) await member.roles.remove(config.active_role_id);
       if (config.inactive_role_id) await member.roles.add(config.inactive_role_id);
     } else {
       if (config.inactive_role_id) await member.roles.remove(config.inactive_role_id);
       if (config.active_role_id) await member.roles.add(config.active_role_id);
+      db.removeRoleSnapshot(member.guild.id, member.id);
     }
   } catch (err) {
     console.error(`[roles] Failed to update ${member.user.tag}:`, err.message);
+  }
+}
+
+async function forgiveInactiveRole(member, config) {
+  if (!member || !config.inactive_role_id) return false;
+  if (config.exemption_role_id && member.roles.cache.has(config.exemption_role_id)) return false;
+
+  const roleIds = db.getRoleSnapshot(member.guild.id, member.id);
+  if (!roleIds) return false;
+
+  try {
+    if (member.roles.cache.has(config.inactive_role_id)) {
+      await member.roles.remove(config.inactive_role_id);
+    }
+    for (const roleId of roleIds) {
+      if (roleId !== config.inactive_role_id && !member.roles.cache.has(roleId)) {
+        await member.roles.add(roleId);
+      }
+    }
+    db.removeRoleSnapshot(member.guild.id, member.id);
+    return true;
+  } catch (err) {
+    console.error(`[roles] Failed to forgive ${member.user.tag}:`, err.message);
+    return false;
   }
 }
 
@@ -153,7 +183,7 @@ async function postAttendance(client, guildConfig) {
     const monthKey = monthStr(prevDate);
     const results = db.processAbsences(guildConfig.guild_id, prevDate, prevBeforeThat, monthKey);
     for (const r of results) {
-      if (r.absenceDays >= 3) {
+      if (r.status === 'reset' && r.previousStreak > 0) {
         const guild = client.guilds.cache.get(guildConfig.guild_id);
         const member = guild ? await guild.members.fetch(r.userId).catch(() => null) : null;
         await updateAttendanceRoles(member, guildConfig, true);
@@ -210,4 +240,4 @@ async function buildLeaderboardEmbed(guild, limit = 25) {
   return embed;
 }
 
-module.exports = { postAttendance, buildLeaderboardEmbed, buildDailyEmbed, updateAttendanceRoles, CHECK_EMOJI, SHIELD_EMOJI };
+module.exports = { postAttendance, buildLeaderboardEmbed, buildDailyEmbed, updateAttendanceRoles, forgiveInactiveRole, CHECK_EMOJI, SHIELD_EMOJI };

@@ -21,7 +21,7 @@ http
   .listen(PORT, () => console.log(`[http] Health check server listening on port ${PORT}`));
 
 const db = require('./db');
-const { postAttendance, buildLeaderboardEmbed, buildDailyEmbed, updateAttendanceRoles, CHECK_EMOJI } = require('./attendance');
+const { postAttendance, buildLeaderboardEmbed, buildDailyEmbed, updateAttendanceRoles, forgiveInactiveRole, CHECK_EMOJI } = require('./attendance');
 const { todayStr, yesterdayStr, monthStr, minutesSinceMidnight } = require('./utils');
 
 const client = new Client({
@@ -210,6 +210,29 @@ client.on(Events.InteractionCreate, async interaction => {
       }
       return interaction.reply({
         content: `🔥 You're on a **${row.current_streak}-day** streak (best: ${row.longest_streak}). Shields left this month: **${shieldsLeft}/${db.MAX_SHIELDS}** (auto-used if you miss a single day).`,
+        ephemeral: true,
+      });
+    }
+
+    if (interaction.commandName === 'forgive-inactive') {
+      if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)) {
+        return interaction.reply({ content: 'You need the Manage Server permission to do this.', ephemeral: true });
+      }
+
+      const config = db.getConfig(interaction.guildId);
+      if (!config?.inactive_role_id) {
+        return interaction.reply({ content: 'Inactive role automation is not configured.', ephemeral: true });
+      }
+
+      const user = interaction.options.getUser('user', true);
+      const member = await interaction.guild.members.fetch(user.id).catch(() => null);
+      if (!member) {
+        return interaction.reply({ content: 'That member is not in this server.', ephemeral: true });
+      }
+
+      const restored = await forgiveInactiveRole(member, config);
+      return interaction.reply({
+        content: restored ? `Restored ${member} to their roles from before inactive status.` : 'No saved roles were found, or this member is exempt.',
         ephemeral: true,
       });
     }

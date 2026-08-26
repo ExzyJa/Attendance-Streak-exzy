@@ -21,10 +21,12 @@ nicknames.
   - Anything older / never → streak resets to 1
 - `/streaks` posts a leaderboard sorted by current streak.
 - `/my-streak` privately tells a user their own streak and shields left.
-- After 3 consecutive missed attendance days, the bot can remove an active
-  role and add an inactive role. A configured exemption role prevents those
-  automatic role changes for its members. Checking in again restores the
-  active role.
+- When a member's streak reaches zero, the bot can remove an active role and
+  add an inactive role. It saves the member's previous roles. A configured
+  exemption role prevents all automatic role changes for its members. Checking
+  in again restores the active role.
+- Moderators can use `/forgive-inactive user` to remove the inactive role and
+  restore the saved roles from before the inactive transition.
 
 Old reactions on yesterday's (or older) messages are ignored — only the
 currently active post counts, so people can't farm streaks by reacting on old
@@ -172,7 +174,8 @@ otherwise the bot effectively goes offline between visits.
 
 | Command | Who | Description |
 |---|---|---|
-| `/setup-attendance channel time [timezone] [title] [message] [active-role] [inactive-role] [exemption-role]` | Manage Server perm | Configure the daily post and optional role automation. After 3 missed days, `active-role` is removed and `inactive-role` is added. Members with `exemption-role` are skipped. `time` is 24h `HH:MM`; `timezone` is an IANA name like `Asia/Manila` (defaults to UTC). |
+| `/setup-attendance channel time [timezone] [title] [message] [active-role] [inactive-role] [exemption-role]` | Manage Server perm | Configure the daily post and optional role automation. When a streak reaches zero, `active-role` is removed and `inactive-role` is added. Members with `exemption-role` are skipped. `time` is 24h `HH:MM`; `timezone` is an IANA name like `Asia/Manila` (defaults to UTC). |
+| `/forgive-inactive user` | Manage Server perm | Remove the inactive role and restore the member's roles from before the inactive transition. |
 | `/post-attendance-now` | Anyone with access | Posts today's attendance message immediately (good for testing). |
 | `/streaks` | Anyone | Leaderboard embed of everyone's current streak. |
 | `/my-streak` | Anyone | Private reply with your own current/best streak. |

@@ -18,7 +18,7 @@ const commands = [
     .addRoleOption(opt =>
       opt.setName('active-role').setDescription('Role to restore when a user checks in').setRequired(false))
     .addRoleOption(opt =>
-      opt.setName('inactive-role').setDescription('Role to add after 3 missed days').setRequired(false))
+      opt.setName('inactive-role').setDescription('Role to add when the streak reaches zero').setRequired(false))
     .addRoleOption(opt =>
       opt.setName('exemption-role').setDescription('Members with this role are exempt from role changes').setRequired(false))
     .toJSON(),
@@ -36,6 +36,13 @@ const commands = [
   new SlashCommandBuilder()
     .setName('my-streak')
     .setDescription('Show your current attendance streak')
+    .toJSON(),
+
+  new SlashCommandBuilder()
+    .setName('forgive-inactive')
+    .setDescription('Restore a member\'s roles after forgiving their inactive status')
+    .addUserOption(opt =>
+      opt.setName('user').setDescription('Member whose previous roles should be restored').setRequired(true))
     .toJSON(),
 ];
 
