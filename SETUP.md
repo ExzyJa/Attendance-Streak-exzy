@@ -28,16 +28,18 @@ The role names can be anything. Select the actual roles in `/setup-attendance`.
 
 ## Add the bot to Discord
 
+Follow these steps to invite the bot into your server:
+
 1. Open the Discord Developer Portal: https://discord.com/developers/applications
-2. Select your application, or create a new application.
-3. Open **Bot** and create the bot if needed.
-4. Copy the bot token. Put it in `.env` as `DISCORD_TOKEN`.
-5. Copy the application ID from **General Information**. Put it in `.env` as `CLIENT_ID`.
-6. Open **OAuth2 -> URL Generator**.
-7. Select these scopes:
+2. Click your bot application. If you do not have one, click **New Application**, enter a name, and click **Create**.
+3. Open **Bot** in the left menu and click **Add Bot** or **Reset Token** if the bot already exists.
+4. Copy the token and put it in your local `.env` file as `DISCORD_TOKEN`. Never share this token.
+5. Open **General Information**, copy the **Application ID**, and put it in `.env` as `CLIENT_ID`.
+6. Open **OAuth2 -> URL Generator** in the left menu.
+7. Under **Scopes**, select:
    - `bot`
    - `applications.commands`
-8. Select these bot permissions:
+8. Under **Bot Permissions**, select:
    - View Channels
    - Send Messages
    - Embed Links
@@ -45,7 +47,19 @@ The role names can be anything. Select the actual roles in `/setup-attendance`.
    - Read Message History
    - Manage Roles, only if role automation will be enabled
    - Mention Everyone, only if you want the daily `@everyone` mention
-9. Open the generated invite URL and select your Discord server.
+9. Scroll to the bottom of the page and click **Copy** beside the generated URL.
+10. Open that copied URL in your browser.
+11. Choose the Discord server where you want to install the bot. You must have **Manage Server** or **Administrator** permission in that server.
+12. Click **Continue**, review the permissions, click **Authorize**, and complete the CAPTCHA if Discord asks for it.
+13. Open your server and confirm that the bot appears in the member list.
+
+The invite URL has this format, where `YOUR_CLIENT_ID` is the Application ID:
+
+```text
+https://discord.com/oauth2/authorize?client_id=YOUR_CLIENT_ID&scope=bot%20applications.commands&permissions=268651584
+```
+
+Using the URL Generator is recommended because it creates the correct permission value for your selected options.
 
 The bot must be above the `Active` and `Inactive` roles in **Server Settings -> Roles**. Discord does not allow a bot to manage roles at or above its highest role.
 
