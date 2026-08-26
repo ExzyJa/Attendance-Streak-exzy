@@ -15,6 +15,12 @@ const commands = [
       opt.setName('title').setDescription('Embed title (default "Daily Attendance")').setRequired(false))
     .addStringOption(opt =>
       opt.setName('message').setDescription('Embed body text').setRequired(false))
+    .addRoleOption(opt =>
+      opt.setName('active-role').setDescription('Role to restore when a user checks in').setRequired(false))
+    .addRoleOption(opt =>
+      opt.setName('inactive-role').setDescription('Role to add after 3 missed days').setRequired(false))
+    .addRoleOption(opt =>
+      opt.setName('exemption-role').setDescription('Members with this role are exempt from role changes').setRequired(false))
     .toJSON(),
 
   new SlashCommandBuilder()

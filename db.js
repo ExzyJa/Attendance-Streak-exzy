@@ -15,7 +15,10 @@ db.exec(`
     minute INTEGER NOT NULL,
     timezone TEXT NOT NULL DEFAULT 'UTC',
     title TEXT NOT NULL DEFAULT 'Daily Attendance',
-    body TEXT NOT NULL DEFAULT 'React with the checkmark if you are online today.'
+    body TEXT NOT NULL DEFAULT 'React with the checkmark if you are online today.',
+    active_role_id TEXT,
+    inactive_role_id TEXT,
+    exemption_role_id TEXT
   );
 
   CREATE TABLE IF NOT EXISTS active_messages (
@@ -59,14 +62,19 @@ ensureColumn('streaks', 'shielded_date', 'TEXT');
 // on its own creation day, so without this, every fresh setup (or any
 // restart later that same day) triggers an instant extra post.
 ensureColumn('config', 'configured_date', "TEXT NOT NULL DEFAULT ''");
+ensureColumn('config', 'active_role_id', 'TEXT');
+ensureColumn('config', 'inactive_role_id', 'TEXT');
+ensureColumn('config', 'exemption_role_id', 'TEXT');
+ensureColumn('streaks', 'absence_days', 'INTEGER NOT NULL DEFAULT 0');
+ensureColumn('streaks', 'last_absence_date', 'TEXT');
 
 const MAX_SHIELDS = 3;
 
 // ---- config ----
-function setConfig(guildId, { channelId, hour, minute, timezone, title, body, configuredDate }) {
+function setConfig(guildId, { channelId, hour, minute, timezone, title, body, configuredDate, activeRoleId, inactiveRoleId, exemptionRoleId }) {
   db.prepare(`
-    INSERT INTO config (guild_id, channel_id, hour, minute, timezone, title, body, configured_date)
-    VALUES (@guildId, @channelId, @hour, @minute, @timezone, @title, @body, @configuredDate)
+    INSERT INTO config (guild_id, channel_id, hour, minute, timezone, title, body, configured_date, active_role_id, inactive_role_id, exemption_role_id)
+    VALUES (@guildId, @channelId, @hour, @minute, @timezone, @title, @body, @configuredDate, @activeRoleId, @inactiveRoleId, @exemptionRoleId)
     ON CONFLICT(guild_id) DO UPDATE SET
       channel_id = excluded.channel_id,
       hour = excluded.hour,
@@ -74,8 +82,11 @@ function setConfig(guildId, { channelId, hour, minute, timezone, title, body, co
       timezone = excluded.timezone,
       title = excluded.title,
       body = excluded.body,
-      configured_date = excluded.configured_date
-  `).run({ guildId, channelId, hour, minute, timezone, title, body, configuredDate });
+        configured_date = excluded.configured_date,
+        active_role_id = excluded.active_role_id,
+        inactive_role_id = excluded.inactive_role_id,
+        exemption_role_id = excluded.exemption_role_id
+      `).run({ guildId, channelId, hour, minute, timezone, title, body, configuredDate, activeRoleId, inactiveRoleId, exemptionRoleId });
 }
 
 function getConfig(guildId) {
@@ -184,7 +195,7 @@ function recordAttendance(guildId, userId, todayDateStr, yesterdayDateStr) {
   const newLongest = Math.max(existing.longest_streak, newStreak);
 
   db.prepare(`
-    UPDATE streaks SET current_streak = ?, longest_streak = ?, last_date = ?, shielded_date = NULL
+    UPDATE streaks SET current_streak = ?, longest_streak = ?, last_date = ?, shielded_date = NULL, absence_days = 0, last_absence_date = NULL
     WHERE guild_id = ? AND user_id = ?
   `).run(newStreak, newLongest, todayDateStr, guildId, userId);
 
@@ -209,9 +220,7 @@ function recordAttendance(guildId, userId, todayDateStr, yesterdayDateStr) {
  * `monthKey` = YYYY-MM of `dateStr`, used for the monthly shield reset.
  */
 function processAbsences(guildId, dateStr, prevDateStr, monthKey) {
-  const rows = db.prepare(`
-    SELECT * FROM streaks WHERE guild_id = ? AND current_streak > 0
-  `).all(guildId);
+  const rows = db.prepare('SELECT * FROM streaks WHERE guild_id = ?').all(guildId);
 
   const checkedIn = new Set(getCheckins(guildId, dateStr));
   const results = [];
@@ -220,23 +229,25 @@ function processAbsences(guildId, dateStr, prevDateStr, monthKey) {
     if (checkedIn.has(row.user_id)) continue; // present — nothing to finalize
     if (row.last_date === dateStr) continue;   // already accounted for today
 
+    const absenceDays = row.last_absence_date === prevDateStr ? row.absence_days + 1 : 1;
+
     const shieldsUsed = row.shields_month === monthKey ? row.shields_used : 0;
     const consecutiveAbsence = row.shielded_date === prevDateStr;
 
     if (!consecutiveAbsence && shieldsUsed < MAX_SHIELDS) {
       db.prepare(`
         UPDATE streaks
-        SET shields_used = ?, shields_month = ?, shielded_date = ?, last_date = ?
+        SET shields_used = ?, shields_month = ?, shielded_date = ?, last_date = ?, absence_days = ?, last_absence_date = ?
         WHERE guild_id = ? AND user_id = ?
-      `).run(shieldsUsed + 1, monthKey, dateStr, dateStr, guildId, row.user_id);
-      results.push({ userId: row.user_id, status: 'shielded', streak: row.current_streak, shieldsLeft: MAX_SHIELDS - (shieldsUsed + 1) });
+      `).run(shieldsUsed + 1, monthKey, dateStr, dateStr, absenceDays, dateStr, guildId, row.user_id);
+      results.push({ userId: row.user_id, status: 'shielded', streak: row.current_streak, shieldsLeft: MAX_SHIELDS - (shieldsUsed + 1), absenceDays });
     } else {
       db.prepare(`
         UPDATE streaks
-        SET current_streak = 0, shielded_date = NULL, shields_used = ?, shields_month = ?
+        SET current_streak = 0, shielded_date = NULL, shields_used = ?, shields_month = ?, absence_days = ?, last_absence_date = ?
         WHERE guild_id = ? AND user_id = ?
-      `).run(shieldsUsed, monthKey, guildId, row.user_id);
-      results.push({ userId: row.user_id, status: 'reset', previousStreak: row.current_streak });
+      `).run(shieldsUsed, monthKey, absenceDays, dateStr, guildId, row.user_id);
+      results.push({ userId: row.user_id, status: 'reset', previousStreak: row.current_streak, absenceDays });
     }
   }
 

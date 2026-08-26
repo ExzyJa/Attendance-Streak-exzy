@@ -21,6 +21,10 @@ nicknames.
   - Anything older / never → streak resets to 1
 - `/streaks` posts a leaderboard sorted by current streak.
 - `/my-streak` privately tells a user their own streak and shields left.
+- After 3 consecutive missed attendance days, the bot can remove an active
+  role and add an inactive role. A configured exemption role prevents those
+  automatic role changes for its members. Checking in again restores the
+  active role.
 
 Old reactions on yesterday's (or older) messages are ignored — only the
 currently active post counts, so people can't farm streaks by reacting on old
@@ -100,9 +104,13 @@ would otherwise have silently skipped that day.
 4. **OAuth2 → General**, copy the **Application ID** (this is `CLIENT_ID`).
 5. **OAuth2 → URL Generator**: scopes `bot` + `applications.commands`;
    bot permissions: `Send Messages`, `Embed Links`, `Add Reactions`,
-   `Read Message History`, `Mention Everyone` (only if you want the
+  `Read Message History`, `Manage Roles`, `Mention Everyone` (only if you want the
    `@everyone` ping — remove it from `attendance.js` if not).
 6. Open the generated URL to invite the bot to your server.
+
+If you use automatic roles, move the bot's highest role above both the active
+and inactive roles in **Server Settings → Roles**. Discord will not let a bot
+manage roles at or above its own highest role.
 
 ### 2. Install & configure on your VPS
 
@@ -164,7 +172,7 @@ otherwise the bot effectively goes offline between visits.
 
 | Command | Who | Description |
 |---|---|---|
-| `/setup-attendance channel time [timezone] [title] [message]` | Manage Server perm | Configure/reconfigure the daily post. `time` is 24h `HH:MM`. `timezone` is an IANA name like `Asia/Manila` (defaults to UTC). |
+| `/setup-attendance channel time [timezone] [title] [message] [active-role] [inactive-role] [exemption-role]` | Manage Server perm | Configure the daily post and optional role automation. After 3 missed days, `active-role` is removed and `inactive-role` is added. Members with `exemption-role` are skipped. `time` is 24h `HH:MM`; `timezone` is an IANA name like `Asia/Manila` (defaults to UTC). |
 | `/post-attendance-now` | Anyone with access | Posts today's attendance message immediately (good for testing). |
 | `/streaks` | Anyone | Leaderboard embed of everyone's current streak. |
 | `/my-streak` | Anyone | Private reply with your own current/best streak. |
@@ -179,3 +187,5 @@ otherwise the bot effectively goes offline between visits.
 - Multiple servers are supported — each guild has its own config and its own
   streak table.
 - To change the daily time later, just run `/setup-attendance` again.
+- To disable role automation, run `/setup-attendance` without `active-role`
+  and `inactive-role`. Re-run it after changing any of the role settings.

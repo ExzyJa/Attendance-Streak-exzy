@@ -118,6 +118,23 @@ function buildDailyEmbed(guildConfig, dateStr, entries) {
   return embed;
 }
 
+async function updateAttendanceRoles(member, config, inactive) {
+  if (!member || (!config.active_role_id && !config.inactive_role_id)) return;
+  if (config.exemption_role_id && member.roles.cache.has(config.exemption_role_id)) return;
+
+  try {
+    if (inactive) {
+      if (config.active_role_id) await member.roles.remove(config.active_role_id);
+      if (config.inactive_role_id) await member.roles.add(config.inactive_role_id);
+    } else {
+      if (config.inactive_role_id) await member.roles.remove(config.inactive_role_id);
+      if (config.active_role_id) await member.roles.add(config.active_role_id);
+    }
+  } catch (err) {
+    console.error(`[roles] Failed to update ${member.user.tag}:`, err.message);
+  }
+}
+
 async function postAttendance(client, guildConfig) {
   const channel = await client.channels.fetch(guildConfig.channel_id).catch(() => null);
   if (!channel) {
@@ -136,6 +153,11 @@ async function postAttendance(client, guildConfig) {
     const monthKey = monthStr(prevDate);
     const results = db.processAbsences(guildConfig.guild_id, prevDate, prevBeforeThat, monthKey);
     for (const r of results) {
+      if (r.absenceDays >= 3) {
+        const guild = client.guilds.cache.get(guildConfig.guild_id);
+        const member = guild ? await guild.members.fetch(r.userId).catch(() => null) : null;
+        await updateAttendanceRoles(member, guildConfig, true);
+      }
       if (r.status === 'shielded') {
         console.log(`[shield] user ${r.userId} in guild ${guildConfig.guild_id} auto-shielded (${r.shieldsLeft} left this month)`);
       } else {
@@ -188,4 +210,4 @@ async function buildLeaderboardEmbed(guild, limit = 25) {
   return embed;
 }
 
-module.exports = { postAttendance, buildLeaderboardEmbed, buildDailyEmbed, CHECK_EMOJI, SHIELD_EMOJI };
+module.exports = { postAttendance, buildLeaderboardEmbed, buildDailyEmbed, updateAttendanceRoles, CHECK_EMOJI, SHIELD_EMOJI };
