@@ -1,5 +1,8 @@
 # Attendance Streak Bot
 
+For complete Discord invite, installation, channel, role, and command setup
+instructions, see [SETUP.md](SETUP.md).
+
 Posts a daily "who's online today" message with a ✅ reaction, and tracks each
 user's consecutive-day streak. `/streaks` shows a leaderboard (name + 🔥
 streak), like the Accepted list in your screenshot, instead of editing
