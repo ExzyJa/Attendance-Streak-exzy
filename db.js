@@ -72,16 +72,22 @@ ensureColumn('config', 'configured_date', "TEXT NOT NULL DEFAULT ''");
 ensureColumn('config', 'active_role_id', 'TEXT');
 ensureColumn('config', 'inactive_role_id', 'TEXT');
 ensureColumn('config', 'exemption_role_id', 'TEXT');
+ensureColumn('config', 'role_automation_enabled', 'INTEGER NOT NULL DEFAULT 0');
 ensureColumn('streaks', 'absence_days', 'INTEGER NOT NULL DEFAULT 0');
 ensureColumn('streaks', 'last_absence_date', 'TEXT');
+db.prepare(`
+  UPDATE config SET role_automation_enabled = 1
+  WHERE active_role_id IS NOT NULL AND inactive_role_id IS NOT NULL
+    AND role_automation_enabled = 0
+`).run();
 
 const MAX_SHIELDS = 3;
 
 // ---- config ----
-function setConfig(guildId, { channelId, hour, minute, timezone, title, body, configuredDate, activeRoleId, inactiveRoleId, exemptionRoleId }) {
+function setConfig(guildId, { channelId, hour, minute, timezone, title, body, configuredDate, activeRoleId, inactiveRoleId, exemptionRoleId, roleAutomationEnabled }) {
   db.prepare(`
-    INSERT INTO config (guild_id, channel_id, hour, minute, timezone, title, body, configured_date, active_role_id, inactive_role_id, exemption_role_id)
-    VALUES (@guildId, @channelId, @hour, @minute, @timezone, @title, @body, @configuredDate, @activeRoleId, @inactiveRoleId, @exemptionRoleId)
+    INSERT INTO config (guild_id, channel_id, hour, minute, timezone, title, body, configured_date, active_role_id, inactive_role_id, exemption_role_id, role_automation_enabled)
+    VALUES (@guildId, @channelId, @hour, @minute, @timezone, @title, @body, @configuredDate, @activeRoleId, @inactiveRoleId, @exemptionRoleId, @roleAutomationEnabled)
     ON CONFLICT(guild_id) DO UPDATE SET
       channel_id = excluded.channel_id,
       hour = excluded.hour,
@@ -92,8 +98,9 @@ function setConfig(guildId, { channelId, hour, minute, timezone, title, body, co
         configured_date = excluded.configured_date,
         active_role_id = excluded.active_role_id,
         inactive_role_id = excluded.inactive_role_id,
-        exemption_role_id = excluded.exemption_role_id
-      `).run({ guildId, channelId, hour, minute, timezone, title, body, configuredDate, activeRoleId, inactiveRoleId, exemptionRoleId });
+        exemption_role_id = excluded.exemption_role_id,
+        role_automation_enabled = excluded.role_automation_enabled
+        `).run({ guildId, channelId, hour, minute, timezone, title, body, configuredDate, activeRoleId, inactiveRoleId, exemptionRoleId, roleAutomationEnabled });
 }
 
 function getConfig(guildId) {

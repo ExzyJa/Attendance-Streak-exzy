@@ -27,6 +27,9 @@ nicknames.
   in again restores the active role.
 - Moderators can use `/forgive-inactive user` to remove the inactive role and
   restore the saved roles from before the inactive transition.
+- Role automation is optional. Set `enable-role-automation` to `true` in
+  `/setup-attendance` and choose both role options to activate it. Leave it
+  false to run attendance and streak tracking without any role changes.
 
 Old reactions on yesterday's (or older) messages are ignored — only the
 currently active post counts, so people can't farm streaks by reacting on old
@@ -174,7 +177,7 @@ otherwise the bot effectively goes offline between visits.
 
 | Command | Who | Description |
 |---|---|---|
-| `/setup-attendance channel time [timezone] [title] [message] [active-role] [inactive-role] [exemption-role]` | Manage Server perm | Configure the daily post and optional role automation. When a streak reaches zero, `active-role` is removed and `inactive-role` is added. Members with `exemption-role` are skipped. `time` is 24h `HH:MM`; `timezone` is an IANA name like `Asia/Manila` (defaults to UTC). |
+| `/setup-attendance channel time [timezone] [title] [message] [enable-role-automation] [active-role] [inactive-role] [exemption-role]` | Manage Server perm | Configure the daily post and optional role automation. Set `enable-role-automation` to true and choose both roles to enable role changes. When a streak reaches zero, `active-role` is removed and `inactive-role` is added. Members with `exemption-role` are skipped. |
 | `/forgive-inactive user` | Manage Server perm | Remove the inactive role and restore the member's roles from before the inactive transition. |
 | `/post-attendance-now` | Anyone with access | Posts today's attendance message immediately (good for testing). |
 | `/streaks` | Anyone | Leaderboard embed of everyone's current streak. |
@@ -190,5 +193,6 @@ otherwise the bot effectively goes offline between visits.
 - Multiple servers are supported — each guild has its own config and its own
   streak table.
 - To change the daily time later, just run `/setup-attendance` again.
-- To disable role automation, run `/setup-attendance` without `active-role`
-  and `inactive-role`. Re-run it after changing any of the role settings.
+- To disable role automation, run `/setup-attendance` with
+  `enable-role-automation` set to false. Re-run it after changing any role
+  settings.

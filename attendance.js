@@ -119,7 +119,7 @@ function buildDailyEmbed(guildConfig, dateStr, entries) {
 }
 
 async function updateAttendanceRoles(member, config, inactive) {
-  if (!member || (!config.active_role_id && !config.inactive_role_id)) return;
+  if (!member || config.role_automation_enabled !== 1 || (!config.active_role_id && !config.inactive_role_id)) return;
   if (config.exemption_role_id && member.roles.cache.has(config.exemption_role_id)) return;
 
   try {
@@ -142,7 +142,7 @@ async function updateAttendanceRoles(member, config, inactive) {
 }
 
 async function forgiveInactiveRole(member, config) {
-  if (!member || !config.inactive_role_id) return false;
+  if (!member || config.role_automation_enabled !== 1 || !config.inactive_role_id) return false;
   if (config.exemption_role_id && member.roles.cache.has(config.exemption_role_id)) return false;
 
   const roleIds = db.getRoleSnapshot(member.guild.id, member.id);

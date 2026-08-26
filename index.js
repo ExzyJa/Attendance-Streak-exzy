@@ -135,12 +135,13 @@ client.on(Events.InteractionCreate, async interaction => {
       const timezone = interaction.options.getString('timezone') || 'UTC';
       const title = interaction.options.getString('title') || 'Daily Attendance';
       const body = interaction.options.getString('message') || 'React with ✅ if you are online today.';
+      const roleAutomationEnabled = interaction.options.getBoolean('enable-role-automation') || false;
       const activeRole = interaction.options.getRole('active-role');
       const inactiveRole = interaction.options.getRole('inactive-role');
       const exemptionRole = interaction.options.getRole('exemption-role');
 
-      if ((activeRole && !inactiveRole) || (!activeRole && inactiveRole)) {
-        return interaction.reply({ content: 'Set both `active-role` and `inactive-role` together, or leave both empty.', ephemeral: true });
+      if (roleAutomationEnabled && (!activeRole || !inactiveRole)) {
+        return interaction.reply({ content: 'When role automation is enabled, set both `active-role` and `inactive-role`.', ephemeral: true });
       }
       if (activeRole && inactiveRole && activeRole.id === inactiveRole.id) {
         return interaction.reply({ content: 'The active and inactive roles must be different.', ephemeral: true });
@@ -166,12 +167,13 @@ client.on(Events.InteractionCreate, async interaction => {
       const config = {
         channelId: channel.id, hour, minute, timezone, title, body,
         configuredDate: todayStr(timezone),
-        activeRoleId: activeRole?.id || null,
-        inactiveRoleId: inactiveRole?.id || null,
-        exemptionRoleId: exemptionRole?.id || null,
+        activeRoleId: roleAutomationEnabled ? activeRole?.id : null,
+        inactiveRoleId: roleAutomationEnabled ? inactiveRole?.id : null,
+        exemptionRoleId: roleAutomationEnabled ? exemptionRole?.id || null : null,
+        roleAutomationEnabled: roleAutomationEnabled ? 1 : 0,
       };
       db.setConfig(interaction.guildId, config);
-      scheduleGuild({ guild_id: interaction.guildId, channel_id: channel.id, hour, minute, timezone, title, body, active_role_id: activeRole?.id || null, inactive_role_id: inactiveRole?.id || null, exemption_role_id: exemptionRole?.id || null });
+      scheduleGuild({ guild_id: interaction.guildId, channel_id: channel.id, hour, minute, timezone, title, body, active_role_id: roleAutomationEnabled ? activeRole?.id : null, inactive_role_id: roleAutomationEnabled ? inactiveRole?.id : null, exemption_role_id: roleAutomationEnabled ? exemptionRole?.id || null : null, role_automation_enabled: roleAutomationEnabled ? 1 : 0 });
 
       return interaction.reply({
         content: `✅ Attendance will post daily in ${channel} at **${match[1].padStart(2, '0')}:${match[2]}** (${timezone}) — that time also acts as the daily reset ("midnight") for streaks and shields. Use \`/post-attendance-now\` to test it immediately.`,

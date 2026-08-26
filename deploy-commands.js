@@ -15,6 +15,8 @@ const commands = [
       opt.setName('title').setDescription('Embed title (default "Daily Attendance")').setRequired(false))
     .addStringOption(opt =>
       opt.setName('message').setDescription('Embed body text').setRequired(false))
+    .addBooleanOption(opt =>
+      opt.setName('enable-role-automation').setDescription('Enable inactive/active role changes').setRequired(false))
     .addRoleOption(opt =>
       opt.setName('active-role').setDescription('Role to restore when a user checks in').setRequired(false))
     .addRoleOption(opt =>
