@@ -1,5 +1,7 @@
 require('dotenv').config();
 const http = require('http');
+const fs = require('fs');
+const path = require('path');
 const {
   Client,
   GatewayIntentBits,
@@ -15,8 +17,35 @@ const cron = require('node-cron');
 const PORT = process.env.PORT || 3000;
 http
   .createServer((req, res) => {
-    res.writeHead(200, { 'Content-Type': 'text/plain' });
-    res.end('Attendance bot is running.\n');
+    if (req.url === '/health') {
+      res.writeHead(200, { 'Content-Type': 'text/plain' });
+      res.end('Attendance bot is running.\n');
+      return;
+    }
+
+    const requestedPath = req.url === '/' ? '/index.html' : req.url.split('?')[0];
+    const filePath = path.join(__dirname, 'public', path.normalize(requestedPath));
+    const contentTypes = {
+      '.css': 'text/css',
+      '.html': 'text/html',
+      '.js': 'application/javascript',
+    };
+
+    if (!filePath.startsWith(path.join(__dirname, 'public')) || !contentTypes[path.extname(filePath)]) {
+      res.writeHead(404, { 'Content-Type': 'text/plain' });
+      res.end('Not found.\n');
+      return;
+    }
+
+    fs.readFile(filePath, (err, content) => {
+      if (err) {
+        res.writeHead(404, { 'Content-Type': 'text/plain' });
+        res.end('Not found.\n');
+        return;
+      }
+      res.writeHead(200, { 'Content-Type': contentTypes[path.extname(filePath)] });
+      res.end(content);
+    });
   })
   .listen(PORT, () => console.log(`[http] Health check server listening on port ${PORT}`));
 
@@ -36,6 +65,14 @@ const client = new Client({
 
 // guildId -> node-cron task, so we can reschedule after /setup-attendance
 const scheduledTasks = new Map();
+
+function parseExemptionRoleIds(value) {
+  if (!value) return [];
+  return [...new Set(value.split(/[\s,]+/).map(role => {
+    const mention = /^<@&(\d+)>$/.exec(role);
+    return mention ? mention[1] : role;
+  }))];
+}
 
 function scheduleGuild(config) {
   const existing = scheduledTasks.get(config.guild_id);
@@ -131,6 +168,7 @@ client.on(Events.InteractionCreate, async interaction => {
       }
 
       const channel = interaction.options.getChannel('channel', true);
+      const announcementChannel = interaction.options.getChannel('announcement-channel');
       const time = interaction.options.getString('time', true);
       const timezone = interaction.options.getString('timezone') || 'UTC';
       const title = interaction.options.getString('title') || 'Daily Attendance';
@@ -138,7 +176,11 @@ client.on(Events.InteractionCreate, async interaction => {
       const roleAutomationEnabled = interaction.options.getBoolean('enable-role-automation') || false;
       const activeRole = interaction.options.getRole('active-role');
       const inactiveRole = interaction.options.getRole('inactive-role');
-      const exemptionRole = interaction.options.getRole('exemption-role');
+      const exemptionRoleIds = parseExemptionRoleIds(interaction.options.getString('exemption-roles'));
+
+      if (exemptionRoleIds.some(roleId => !/^\d{17,20}$/.test(roleId))) {
+        return interaction.reply({ content: 'Use valid role IDs or role mentions, separated by commas or spaces.', ephemeral: true });
+      }
 
       if (roleAutomationEnabled && (!activeRole || !inactiveRole)) {
         return interaction.reply({ content: 'When role automation is enabled, set both `active-role` and `inactive-role`.', ephemeral: true });
@@ -165,15 +207,15 @@ client.on(Events.InteractionCreate, async interaction => {
       }
 
       const config = {
-        channelId: channel.id, hour, minute, timezone, title, body,
+        channelId: channel.id, announcementChannelId: announcementChannel?.id || null, hour, minute, timezone, title, body,
         configuredDate: todayStr(timezone),
         activeRoleId: roleAutomationEnabled ? activeRole?.id : null,
         inactiveRoleId: roleAutomationEnabled ? inactiveRole?.id : null,
-        exemptionRoleId: roleAutomationEnabled ? exemptionRole?.id || null : null,
+        exemptionRoleId: roleAutomationEnabled ? exemptionRoleIds.join(',') || null : null,
         roleAutomationEnabled: roleAutomationEnabled ? 1 : 0,
       };
       db.setConfig(interaction.guildId, config);
-      scheduleGuild({ guild_id: interaction.guildId, channel_id: channel.id, hour, minute, timezone, title, body, active_role_id: roleAutomationEnabled ? activeRole?.id : null, inactive_role_id: roleAutomationEnabled ? inactiveRole?.id : null, exemption_role_id: roleAutomationEnabled ? exemptionRole?.id || null : null, role_automation_enabled: roleAutomationEnabled ? 1 : 0 });
+      scheduleGuild({ guild_id: interaction.guildId, channel_id: channel.id, announcement_channel_id: announcementChannel?.id || null, hour, minute, timezone, title, body, active_role_id: roleAutomationEnabled ? activeRole?.id : null, inactive_role_id: roleAutomationEnabled ? inactiveRole?.id : null, exemption_role_id: roleAutomationEnabled ? exemptionRoleIds.join(',') || null : null, role_automation_enabled: roleAutomationEnabled ? 1 : 0 });
 
       return interaction.reply({
         content: `✅ Attendance will post daily in ${channel} at **${match[1].padStart(2, '0')}:${match[2]}** (${timezone}) — that time also acts as the daily reset ("midnight") for streaks and shields. Use \`/post-attendance-now\` to test it immediately.`,

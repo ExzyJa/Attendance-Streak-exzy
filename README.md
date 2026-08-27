@@ -180,7 +180,7 @@ otherwise the bot effectively goes offline between visits.
 
 | Command | Who | Description |
 |---|---|---|
-| `/setup-attendance channel time [timezone] [title] [message] [enable-role-automation] [active-role] [inactive-role] [exemption-role]` | Manage Server perm | Configure the daily post and optional role automation. Set `enable-role-automation` to true and choose both roles to enable role changes. When a streak reaches zero, `active-role` is removed and `inactive-role` is added. Members with `exemption-role` are skipped. |
+| `/setup-attendance channel [announcement-channel] time [timezone] [title] [message] [enable-role-automation] [active-role] [inactive-role] [exemption-roles]` | Manage Server perm | Configure the daily post, optional inactive-member announcements, and role automation. When a streak reaches zero, `active-role` is removed and `inactive-role` is added. Members with any configured `exemption-roles` are skipped. |
 | `/forgive-inactive user` | Manage Server perm | Remove the inactive role and restore the member's roles from before the inactive transition. |
 | `/post-attendance-now` | Anyone with access | Posts today's attendance message immediately (good for testing). |
 | `/streaks` | Anyone | Leaderboard embed of everyone's current streak. |

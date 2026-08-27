@@ -16,6 +16,7 @@ db.exec(`
     timezone TEXT NOT NULL DEFAULT 'UTC',
     title TEXT NOT NULL DEFAULT 'Daily Attendance',
     body TEXT NOT NULL DEFAULT 'React with the checkmark if you are online today.',
+    announcement_channel_id TEXT,
     active_role_id TEXT,
     inactive_role_id TEXT,
     exemption_role_id TEXT
@@ -69,6 +70,7 @@ ensureColumn('streaks', 'shielded_date', 'TEXT');
 // on its own creation day, so without this, every fresh setup (or any
 // restart later that same day) triggers an instant extra post.
 ensureColumn('config', 'configured_date', "TEXT NOT NULL DEFAULT ''");
+ensureColumn('config', 'announcement_channel_id', 'TEXT');
 ensureColumn('config', 'active_role_id', 'TEXT');
 ensureColumn('config', 'inactive_role_id', 'TEXT');
 ensureColumn('config', 'exemption_role_id', 'TEXT');
@@ -84,10 +86,10 @@ db.prepare(`
 const MAX_SHIELDS = 3;
 
 // ---- config ----
-function setConfig(guildId, { channelId, hour, minute, timezone, title, body, configuredDate, activeRoleId, inactiveRoleId, exemptionRoleId, roleAutomationEnabled }) {
+function setConfig(guildId, { channelId, hour, minute, timezone, title, body, announcementChannelId, configuredDate, activeRoleId, inactiveRoleId, exemptionRoleId, roleAutomationEnabled }) {
   db.prepare(`
-    INSERT INTO config (guild_id, channel_id, hour, minute, timezone, title, body, configured_date, active_role_id, inactive_role_id, exemption_role_id, role_automation_enabled)
-    VALUES (@guildId, @channelId, @hour, @minute, @timezone, @title, @body, @configuredDate, @activeRoleId, @inactiveRoleId, @exemptionRoleId, @roleAutomationEnabled)
+    INSERT INTO config (guild_id, channel_id, hour, minute, timezone, title, body, announcement_channel_id, configured_date, active_role_id, inactive_role_id, exemption_role_id, role_automation_enabled)
+    VALUES (@guildId, @channelId, @hour, @minute, @timezone, @title, @body, @announcementChannelId, @configuredDate, @activeRoleId, @inactiveRoleId, @exemptionRoleId, @roleAutomationEnabled)
     ON CONFLICT(guild_id) DO UPDATE SET
       channel_id = excluded.channel_id,
       hour = excluded.hour,
@@ -95,12 +97,13 @@ function setConfig(guildId, { channelId, hour, minute, timezone, title, body, co
       timezone = excluded.timezone,
       title = excluded.title,
       body = excluded.body,
+        announcement_channel_id = excluded.announcement_channel_id,
         configured_date = excluded.configured_date,
         active_role_id = excluded.active_role_id,
         inactive_role_id = excluded.inactive_role_id,
         exemption_role_id = excluded.exemption_role_id,
         role_automation_enabled = excluded.role_automation_enabled
-        `).run({ guildId, channelId, hour, minute, timezone, title, body, configuredDate, activeRoleId, inactiveRoleId, exemptionRoleId, roleAutomationEnabled });
+        `).run({ guildId, channelId, hour, minute, timezone, title, body, announcementChannelId, configuredDate, activeRoleId, inactiveRoleId, exemptionRoleId, roleAutomationEnabled });
 }
 
 function getConfig(guildId) {

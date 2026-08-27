@@ -9,6 +9,8 @@ const commands = [
       opt.setName('channel').setDescription('Channel to post attendance in').setRequired(true))
     .addStringOption(opt =>
       opt.setName('time').setDescription('Time to post daily, 24h HH:MM (e.g. 09:00)').setRequired(true))
+    .addChannelOption(opt =>
+      opt.setName('announcement-channel').setDescription('Channel for inactive-member announcements').setRequired(false))
     .addStringOption(opt =>
       opt.setName('timezone').setDescription('IANA timezone, e.g. Asia/Manila (default UTC)').setRequired(false))
     .addStringOption(opt =>
@@ -21,8 +23,8 @@ const commands = [
       opt.setName('active-role').setDescription('Role to restore when a user checks in').setRequired(false))
     .addRoleOption(opt =>
       opt.setName('inactive-role').setDescription('Role to add when the streak reaches zero').setRequired(false))
-    .addRoleOption(opt =>
-      opt.setName('exemption-role').setDescription('Members with this role are exempt from role changes').setRequired(false))
+    .addStringOption(opt =>
+      opt.setName('exemption-roles').setDescription('Role IDs or mentions, separated by commas or spaces').setRequired(false))
     .toJSON(),
 
   new SlashCommandBuilder()

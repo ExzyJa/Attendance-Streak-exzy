@@ -20,6 +20,12 @@ const NAME_COL_WIDTH = 18;
 const FIELD_CHAR_BUDGET = 1000;
 const MAX_CHECKIN_FIELDS = 4;
 
+function hasExemptionRole(member, exemptionRoleIds) {
+  if (!exemptionRoleIds) return false;
+  const roleIds = exemptionRoleIds.split(/[\s,]+/).filter(Boolean);
+  return roleIds.some(roleId => member.roles.cache.has(roleId));
+}
+
 function padName(name) {
   const trimmed = name.length > NAME_COL_WIDTH ? name.slice(0, NAME_COL_WIDTH - 1) + '…' : name;
   return trimmed.padEnd(NAME_COL_WIDTH, ' ');
@@ -119,8 +125,8 @@ function buildDailyEmbed(guildConfig, dateStr, entries) {
 }
 
 async function updateAttendanceRoles(member, config, inactive) {
-  if (!member || config.role_automation_enabled !== 1 || (!config.active_role_id && !config.inactive_role_id)) return;
-  if (config.exemption_role_id && member.roles.cache.has(config.exemption_role_id)) return;
+  if (!member || config.role_automation_enabled !== 1 || (!config.active_role_id && !config.inactive_role_id)) return false;
+  if (hasExemptionRole(member, config.exemption_role_id)) return false;
 
   try {
     if (inactive) {
@@ -136,14 +142,16 @@ async function updateAttendanceRoles(member, config, inactive) {
       if (config.active_role_id) await member.roles.add(config.active_role_id);
       db.removeRoleSnapshot(member.guild.id, member.id);
     }
+    return true;
   } catch (err) {
     console.error(`[roles] Failed to update ${member.user.tag}:`, err.message);
+    return false;
   }
 }
 
 async function forgiveInactiveRole(member, config) {
   if (!member || config.role_automation_enabled !== 1 || !config.inactive_role_id) return false;
-  if (config.exemption_role_id && member.roles.cache.has(config.exemption_role_id)) return false;
+  if (hasExemptionRole(member, config.exemption_role_id)) return false;
 
   const roleIds = db.getRoleSnapshot(member.guild.id, member.id);
   if (!roleIds) return false;
@@ -186,7 +194,16 @@ async function postAttendance(client, guildConfig) {
       if (r.status === 'reset' && r.previousStreak > 0) {
         const guild = client.guilds.cache.get(guildConfig.guild_id);
         const member = guild ? await guild.members.fetch(r.userId).catch(() => null) : null;
-        await updateAttendanceRoles(member, guildConfig, true);
+        const roleUpdated = await updateAttendanceRoles(member, guildConfig, true);
+        if (roleUpdated && guildConfig.announcement_channel_id) {
+          const announcementChannel = await client.channels.fetch(guildConfig.announcement_channel_id).catch(() => null);
+          if (announcementChannel) {
+            const inactiveRoleMention = guildConfig.inactive_role_id ? ` and given <@&${guildConfig.inactive_role_id}>` : '';
+            await announcementChannel.send(`<@${r.userId}> has been placed on hold${inactiveRoleMention} because they did not participate in attendance.`).catch(err =>
+              console.error(`[announcement] Failed to notify ${r.userId}:`, err.message)
+            );
+          }
+        }
       }
       if (r.status === 'shielded') {
         console.log(`[shield] user ${r.userId} in guild ${guildConfig.guild_id} auto-shielded (${r.shieldsLeft} left this month)`);

@@ -104,6 +104,7 @@ Use these values:
 
 ```text
 channel: #attendance
+announcement-channel: #attendance-announcements
 time: 09:00
 timezone: Asia/Manila
 enable-role-automation: false
@@ -124,10 +125,11 @@ timezone: Asia/Manila
 enable-role-automation: true
 active-role: @Active
 inactive-role: @Inactive
-exemption-role: @Exempt
+exemption-roles: @Exempt, @Staff
 ```
 
-The `active-role` and `inactive-role` options are required when role automation is enabled. The exemption role is optional.
+The `active-role` and `inactive-role` options are required when role automation is enabled. The exemption roles are optional; enter one or more role mentions or IDs separated by commas or spaces.
+The `announcement-channel` is optional. When set, the bot mentions members after successfully assigning the inactive role because they missed attendance.
 
 ## How automatic roles work
 
@@ -136,7 +138,8 @@ The `active-role` and `inactive-role` options are required when role automation 
 3. If the streak reaches zero after absence processing, the bot saves the member's current roles.
 4. The bot removes the active role and adds the inactive role.
 5. If the member checks in again, the bot removes the inactive role and restores the active role.
-6. Members who have the exemption role are never changed by the bot.
+6. Members who have any configured exemption role are never changed by the bot.
+7. If an announcement channel is configured, the bot announces members placed on hold after missing attendance.
 
 The bot can only change roles below its highest role and only when it has the Manage Roles permission.
 
