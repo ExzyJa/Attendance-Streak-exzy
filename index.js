@@ -311,11 +311,11 @@ client.on(Events.MessageReactionAdd, async (reaction, user) => {
     if (!guildId) return;
 
     const config = db.getConfig(guildId);
+    const today = config ? todayStr(config.timezone) : null;
     const active = db.getActiveMessage(guildId);
     if (!config || !active) return;
-    if (active.message_id !== reaction.message.id) return; // reacted on an old post, not today's
+    if (active.message_id !== reaction.message.id || active.attendance_date !== today) return; // old or stale post
 
-    const today = todayStr(config.timezone);
     const yesterday = yesterdayStr(config.timezone);
 
     const isNewCheckin = db.recordCheckin(guildId, user.id, today);
@@ -345,11 +345,11 @@ client.on(Events.MessageReactionRemove, async (reaction, user) => {
     if (!guildId) return;
 
     const config = db.getConfig(guildId);
+    const today = config ? todayStr(config.timezone) : null;
     const active = db.getActiveMessage(guildId);
     if (!config || !active) return;
-    if (active.message_id !== reaction.message.id) return;
+    if (active.message_id !== reaction.message.id || active.attendance_date !== today) return;
 
-    const today = todayStr(config.timezone);
     db.removeCheckin(guildId, user.id, today);
 
     // Note: this only removes them from today's visible list. It does NOT
