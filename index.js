@@ -59,8 +59,18 @@ function readRequestBody(req) {
 
 async function discordRequest(endpoint, options = {}) {
   const response = await fetch(`https://discord.com/api/v10${endpoint}`, options);
-  if (!response.ok) throw new Error(`Discord API returned ${response.status}`);
-  return response.json();
+  const responseText = await response.text();
+  let payload;
+  try {
+    payload = JSON.parse(responseText);
+  } catch {
+    payload = {};
+  }
+  if (!response.ok) {
+    const reason = payload.error_description || payload.message || payload.error || 'request failed';
+    throw new Error(`Discord API ${response.status}: ${reason}`);
+  }
+  return payload;
 }
 
 function hasManageGuildPermission(guild) {
@@ -103,6 +113,11 @@ http
     }
 
     if (requestUrl.pathname === '/auth/callback') {
+      if (requestUrl.searchParams.get('error')) {
+        res.writeHead(400, { 'Content-Type': 'text/plain' });
+        res.end('Discord authorization was cancelled. Please try again and click Authorize.\n');
+        return;
+      }
       const stateExpiry = oauthStates.get(requestUrl.searchParams.get('state'));
       oauthStates.delete(requestUrl.searchParams.get('state'));
       if (!stateExpiry || stateExpiry < Date.now() || !requestUrl.searchParams.get('code')) {
