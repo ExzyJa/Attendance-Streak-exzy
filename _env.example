@@ -1,0 +1,18 @@
+DISCORD_TOKEN=your-bot-token-here
+
+CLIENT_ID=your-application-client-id-here 
+
+
+# Optional. Leave unset for local/VPS use (writes attendance.sqlite next to the code).
+# On Railway, set this to a path inside your mounted volume, e.g. /data/attendance.sqlite,
+# so streak data survives redeploys and restarts.
+DB_PATH= If you see an actual token string instead of 'your-bot-token-here
+
+# Optional. Real animated custom emoji (e.g. <a:fire_blue:123456789012345678>)
+# to use for each streak-fire tier instead of the default static 🔥.
+# Leave any/all unset to just use 🔥 for that tier.
+FIRE_EMOJI_DEFAULT=
+FIRE_EMOJI_BLUE=
+FIRE_EMOJI_VIOLET=
+FIRE_EMOJI_PURPLE_RED=
+FIRE_EMOJI_BLACK_PURPLE=
