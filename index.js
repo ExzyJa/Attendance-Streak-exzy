@@ -2,6 +2,7 @@ require('dotenv').config();
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const {
   Client,
   GatewayIntentBits,
@@ -15,11 +16,193 @@ const cron = require('node-cron');
 // to HTTP so they can health-check it. The bot itself only needs the Discord
 // Gateway connection, so this is just a minimal "I'm alive" endpoint.
 const PORT = process.env.PORT || 3000;
+const webSessions = new Map();
+const oauthStates = new Map();
+
+function sendJson(res, status, payload) {
+  res.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+  res.end(JSON.stringify(payload));
+}
+
+function parseCookies(req) {
+  return Object.fromEntries((req.headers.cookie || '').split(';').filter(Boolean).map(cookie => {
+    const separator = cookie.indexOf('=');
+    return [cookie.slice(0, separator).trim(), decodeURIComponent(cookie.slice(separator + 1).trim())];
+  }));
+}
+
+function getWebSession(req) {
+  const sessionId = parseCookies(req).attendance_session;
+  return sessionId ? webSessions.get(sessionId) : null;
+}
+
+function requireWebSession(req, res) {
+  const session = getWebSession(req);
+  if (!session) {
+    sendJson(res, 401, { error: 'Sign in with Discord to continue.' });
+    return null;
+  }
+  return session;
+}
+
+function readRequestBody(req) {
+  return new Promise((resolve, reject) => {
+    let body = '';
+    req.on('data', chunk => {
+      body += chunk;
+      if (body.length > 100000) reject(new Error('Request body is too large.'));
+    });
+    req.on('end', () => resolve(body));
+    req.on('error', reject);
+  });
+}
+
+async function discordRequest(endpoint, options = {}) {
+  const response = await fetch(`https://discord.com/api/v10${endpoint}`, options);
+  if (!response.ok) throw new Error(`Discord API returned ${response.status}`);
+  return response.json();
+}
+
+function hasManageGuildPermission(guild) {
+  return guild.owner || (BigInt(guild.permissions || 0) & 0x20n) === 0x20n;
+}
+
+function getAuthorizedGuild(session, guildId) {
+  return session.guilds.find(guild => guild.id === guildId && hasManageGuildPermission(guild) && client.guilds.cache.has(guildId));
+}
+
 http
-  .createServer((req, res) => {
+  .createServer(async (req, res) => {
     if (req.url === '/health') {
       res.writeHead(200, { 'Content-Type': 'text/plain' });
       res.end('Attendance bot is running.\n');
+      return;
+    }
+
+    const requestUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+
+    if (requestUrl.pathname === '/auth/login') {
+      if (!process.env.DISCORD_CLIENT_ID || !process.env.DISCORD_CLIENT_SECRET || !process.env.DISCORD_REDIRECT_URI) {
+        res.writeHead(503, { 'Content-Type': 'text/plain' });
+        res.end('Web login is not configured. Set DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET, and DISCORD_REDIRECT_URI.\n');
+        return;
+      }
+      const state = crypto.randomBytes(24).toString('hex');
+      oauthStates.set(state, Date.now() + 5 * 60 * 1000);
+      const params = new URLSearchParams({
+        client_id: process.env.DISCORD_CLIENT_ID,
+        redirect_uri: process.env.DISCORD_REDIRECT_URI,
+        response_type: 'code',
+        scope: 'identify guilds',
+        state,
+      });
+      res.writeHead(302, { Location: `https://discord.com/oauth2/authorize?${params}` });
+      res.end();
+      return;
+    }
+
+    if (requestUrl.pathname === '/auth/callback') {
+      const stateExpiry = oauthStates.get(requestUrl.searchParams.get('state'));
+      oauthStates.delete(requestUrl.searchParams.get('state'));
+      if (!stateExpiry || stateExpiry < Date.now() || !requestUrl.searchParams.get('code')) {
+        res.writeHead(400, { 'Content-Type': 'text/plain' });
+        res.end('Invalid or expired login request.\n');
+        return;
+      }
+      try {
+        const tokenParams = new URLSearchParams({
+          client_id: process.env.DISCORD_CLIENT_ID,
+          client_secret: process.env.DISCORD_CLIENT_SECRET,
+          grant_type: 'authorization_code',
+          code: requestUrl.searchParams.get('code'),
+          redirect_uri: process.env.DISCORD_REDIRECT_URI,
+        });
+        const token = await discordRequest('/oauth2/token', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: tokenParams });
+        const [user, guilds] = await Promise.all([
+          discordRequest('/users/@me', { headers: { Authorization: `Bearer ${token.access_token}` } }),
+          discordRequest('/users/@me/guilds', { headers: { Authorization: `Bearer ${token.access_token}` } }),
+        ]);
+        const sessionId = crypto.randomBytes(32).toString('hex');
+        webSessions.set(sessionId, { user, guilds, expiresAt: Date.now() + 8 * 60 * 60 * 1000 });
+        res.writeHead(302, { Location: '/#dashboard', 'Set-Cookie': `attendance_session=${sessionId}; HttpOnly; SameSite=Lax; Path=/; Max-Age=28800` });
+        res.end();
+      } catch (err) {
+        console.error('[web-auth] login failed:', err.message);
+        res.writeHead(502, { 'Content-Type': 'text/plain' });
+        res.end('Discord login failed. Please try again.\n');
+      }
+      return;
+    }
+
+    if (requestUrl.pathname === '/auth/logout') {
+      const sessionId = parseCookies(req).attendance_session;
+      if (sessionId) webSessions.delete(sessionId);
+      res.writeHead(302, { Location: '/', 'Set-Cookie': 'attendance_session=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0' });
+      res.end();
+      return;
+    }
+
+    if (requestUrl.pathname === '/api/me') {
+      const session = getWebSession(req);
+      sendJson(res, 200, session ? { authenticated: true, user: session.user } : { authenticated: false });
+      return;
+    }
+
+    if (requestUrl.pathname === '/api/setup-guilds') {
+      const session = requireWebSession(req, res);
+      if (!session) return;
+      if (session.expiresAt < Date.now()) {
+        sendJson(res, 401, { error: 'Your session expired. Please sign in again.' });
+        return;
+      }
+      const guilds = session.guilds.filter(hasManageGuildPermission).filter(guild => client.guilds.cache.has(guild.id)).map(guild => ({ id: guild.id, name: guild.name, icon: guild.icon }));
+      sendJson(res, 200, { guilds });
+      return;
+    }
+
+    if (requestUrl.pathname.startsWith('/api/setup-options/')) {
+      const session = requireWebSession(req, res);
+      if (!session) return;
+      const guildId = requestUrl.pathname.split('/').pop();
+      if (!getAuthorizedGuild(session, guildId)) {
+        sendJson(res, 403, { error: 'You cannot configure this server.' });
+        return;
+      }
+      const guild = client.guilds.cache.get(guildId);
+      const channels = guild.channels.cache.filter(channel => channel.isTextBased() && !channel.isThread()).map(channel => ({ id: channel.id, name: channel.name })).sort((first, second) => first.name.localeCompare(second.name));
+      const roles = guild.roles.cache.filter(role => !role.managed && role.id !== guildId).map(role => ({ id: role.id, name: role.name })).sort((first, second) => first.name.localeCompare(second.name));
+      sendJson(res, 200, { channels, roles, config: db.getConfig(guildId) || null });
+      return;
+    }
+
+    if (requestUrl.pathname === '/api/setup-config' && req.method === 'POST') {
+      const session = requireWebSession(req, res);
+      if (!session) return;
+      try {
+        const data = JSON.parse(await readRequestBody(req));
+        const guildId = String(data.guildId || '');
+        const authorizedGuild = getAuthorizedGuild(session, guildId);
+        const guild = client.guilds.cache.get(guildId);
+        if (!authorizedGuild || !guild) return sendJson(res, 403, { error: 'You cannot configure this server.' });
+        const timeMatch = /^(\d{1,2}):(\d{2})$/.exec(String(data.time || '').trim());
+        const hour = timeMatch ? Number(timeMatch[1]) : -1;
+        const minute = timeMatch ? Number(timeMatch[2]) : -1;
+        if (hour > 23 || minute > 59 || hour < 0 || minute < 0) return sendJson(res, 400, { error: 'Use a valid 24-hour time such as 00:00.' });
+        Intl.DateTimeFormat('en-US', { timeZone: String(data.timezone || '') });
+        const channel = guild.channels.cache.get(String(data.channelId || ''));
+        const announcementChannel = data.announcementChannelId ? guild.channels.cache.get(String(data.announcementChannelId)) : null;
+        const activeRole = data.activeRoleId ? guild.roles.cache.get(String(data.activeRoleId)) : null;
+        const inactiveRole = data.inactiveRoleId ? guild.roles.cache.get(String(data.inactiveRoleId)) : null;
+        const exemptionRoleIds = parseExemptionRoleIds(Array.isArray(data.exemptionRoleIds) ? data.exemptionRoleIds.join(',') : data.exemptionRoleIds);
+        if (!channel || !channel.isTextBased() || (announcementChannel && !announcementChannel.isTextBased()) || (activeRole && activeRole.managed) || (inactiveRole && inactiveRole.managed) || exemptionRoleIds.some(roleId => !guild.roles.cache.has(roleId))) return sendJson(res, 400, { error: 'Choose valid channels and roles from this server.' });
+        if (data.roleAutomationEnabled && (!activeRole || !inactiveRole || activeRole.id === inactiveRole.id)) return sendJson(res, 400, { error: 'Choose two different active and inactive roles.' });
+        const config = { channelId: channel.id, announcementChannelId: announcementChannel?.id || null, hour, minute, timezone: String(data.timezone), title: String(data.title || 'Daily Attendance').slice(0, 256), body: String(data.body || 'React with ✅ if you are online today.').slice(0, 4000), configuredDate: todayStr(String(data.timezone)), activeRoleId: data.roleAutomationEnabled ? activeRole.id : null, inactiveRoleId: data.roleAutomationEnabled ? inactiveRole.id : null, exemptionRoleId: data.roleAutomationEnabled ? exemptionRoleIds.join(',') || null : null, roleAutomationEnabled: data.roleAutomationEnabled ? 1 : 0 };
+        db.setConfig(guildId, config);
+        scheduleGuild({ guild_id: guildId, channel_id: config.channelId, announcement_channel_id: config.announcementChannelId, hour, minute, timezone: config.timezone, title: config.title, body: config.body, active_role_id: config.activeRoleId, inactive_role_id: config.inactiveRoleId, exemption_role_id: config.exemptionRoleId, role_automation_enabled: config.roleAutomationEnabled });
+        sendJson(res, 200, { saved: true });
+      } catch (err) {
+        sendJson(res, 400, { error: err.message.includes('time zone') ? 'Use a valid IANA timezone such as Asia/Manila.' : 'Please check the form values and try again.' });
+      }
       return;
     }
 
@@ -39,6 +222,10 @@ http
       '.css': 'text/css',
       '.html': 'text/html',
       '.js': 'application/javascript',
+      '.png': 'image/png',
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.webp': 'image/webp',
     };
 
     if (!filePath.startsWith(path.join(__dirname, 'public')) || !contentTypes[path.extname(filePath)]) {

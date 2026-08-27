@@ -14,7 +14,7 @@ Create one text channel for attendance, for example:
 
 This is the only channel the bot needs. The bot posts the daily attendance message there.
 
-There is no separate inactive channel. Inactive members are managed with the inactive Discord role. The bot does not currently send inactive notifications to another channel.
+There is no separate inactive channel. Inactive members are managed with the inactive Discord role. You can optionally choose an announcement channel for inactive notifications.
 
 ### Optional roles
 
@@ -76,7 +76,18 @@ Create `.env` from the example file and fill in your values:
 ```env
 DISCORD_TOKEN=your-bot-token
 CLIENT_ID=your-application-client-id
+DISCORD_CLIENT_ID=your-application-client-id
+DISCORD_CLIENT_SECRET=your-oauth2-client-secret
+DISCORD_REDIRECT_URI=https://your-railway-domain.up.railway.app/auth/callback
 ```
+
+For web-based moderator setup, open **Discord Developer Portal -> your application -> OAuth2**.
+Add the exact `DISCORD_REDIRECT_URI` above under **Redirects**, then copy the
+OAuth2 Client Secret into `DISCORD_CLIENT_SECRET`. On Railway, add these three
+variables in **Service -> Variables**, replacing the domain with your generated
+Railway domain. Moderators can then open the website, click **Sign in with
+Discord**, choose a server, and save its attendance settings without using a
+Discord command.
 
 For Railway or another persistent volume, also set:
 
