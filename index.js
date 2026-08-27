@@ -68,6 +68,7 @@ function hasManageGuildPermission(guild) {
 }
 
 function getAuthorizedGuild(session, guildId) {
+  if (!session || session.expiresAt < Date.now()) return null;
   return session.guilds.find(guild => guild.id === guildId && hasManageGuildPermission(guild) && client.guilds.cache.has(guildId));
 }
 
@@ -124,7 +125,7 @@ http
         ]);
         const sessionId = crypto.randomBytes(32).toString('hex');
         webSessions.set(sessionId, { user, guilds, expiresAt: Date.now() + 8 * 60 * 60 * 1000 });
-        res.writeHead(302, { Location: '/#dashboard', 'Set-Cookie': `attendance_session=${sessionId}; HttpOnly; SameSite=Lax; Path=/; Max-Age=28800` });
+        res.writeHead(302, { Location: '/dashboard.html#dashboard', 'Set-Cookie': `attendance_session=${sessionId}; HttpOnly; SameSite=Lax; Path=/; Max-Age=28800` });
         res.end();
       } catch (err) {
         console.error('[web-auth] login failed:', err.message);
