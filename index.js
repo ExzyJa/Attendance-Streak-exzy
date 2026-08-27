@@ -23,6 +23,16 @@ http
       return;
     }
 
+    if (req.url.split('?')[0] === '/api/servers') {
+      const servers = client.guilds.cache.map(guild => ({
+        name: guild.name,
+        icon: guild.iconURL({ extension: 'png', size: 64 }),
+      })).sort((first, second) => first.name.localeCompare(second.name));
+      res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+      res.end(JSON.stringify({ count: servers.length, servers }));
+      return;
+    }
+
     const requestedPath = req.url === '/' ? '/index.html' : req.url.split('?')[0];
     const filePath = path.join(__dirname, 'public', path.normalize(requestedPath));
     const contentTypes = {

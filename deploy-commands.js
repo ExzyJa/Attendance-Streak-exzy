@@ -9,8 +9,8 @@ const commands = [
       opt.setName('channel').setDescription('Channel to post attendance in').setRequired(true))
     .addStringOption(opt =>
       opt.setName('time').setDescription('Time to post daily, 24h HH:MM (e.g. 09:00)').setRequired(true))
-    .addChannelOption(opt =>
-      opt.setName('announcement-channel').setDescription('Channel for inactive-member announcements').setRequired(false))
+      .addChannelOption(opt =>
+        opt.setName('announcement-channel').setDescription('Channel for inactive-member announcements').setRequired(false))
     .addStringOption(opt =>
       opt.setName('timezone').setDescription('IANA timezone, e.g. Asia/Manila (default UTC)').setRequired(false))
     .addStringOption(opt =>
