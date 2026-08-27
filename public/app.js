@@ -111,7 +111,11 @@ async function loadDashboard() {
   try {
     const response = await fetch('/api/me');
     const data = await response.json();
-    if (!data.authenticated) return;
+    if (!data.authenticated) {
+      dashboardStatus.textContent = 'Connecting to Discord...';
+      window.location.href = '/auth/login';
+      return;
+    }
     currentUser = data.user;
     dashboardStatus.textContent = `Welcome, ${currentUser.username}`;
     loginButton.hidden = true;
