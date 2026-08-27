@@ -89,6 +89,12 @@ Railway domain. Moderators can then open the website, click **Sign in with
 Discord**, choose a server, and save its attendance settings without using a
 Discord command.
 
+Open the moderator dashboard directly at:
+
+```text
+https://your-railway-domain.up.railway.app/dashboard.html
+```
+
 For Railway or another persistent volume, also set:
 
 ```env

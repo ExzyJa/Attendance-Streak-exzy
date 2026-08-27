@@ -6,6 +6,7 @@ instructions, see [SETUP.md](SETUP.md).
 Moderators can configure the bot from the website after Discord OAuth2 is
 configured. The dashboard only shows servers where the signed-in user has
 Manage Server permission and where the bot is installed.
+Open it at `/dashboard.html` on the bot's public website.
 
 Posts a daily "who's online today" message with a ✅ reaction, and tracks each
 user's consecutive-day streak. `/streaks` shows a leaderboard (name + 🔥

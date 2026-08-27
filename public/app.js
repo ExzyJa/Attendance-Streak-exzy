@@ -16,12 +16,12 @@ if (localStorage.getItem('attendance-theme') === 'dark') {
   document.body.classList.add('dark');
 }
 
-themeToggle.addEventListener('click', () => {
+if (themeToggle) themeToggle.addEventListener('click', () => {
   document.body.classList.toggle('dark');
   localStorage.setItem('attendance-theme', document.body.classList.contains('dark') ? 'dark' : 'light');
 });
 
-copyButton.addEventListener('click', async () => {
+if (copyButton) copyButton.addEventListener('click', async () => {
   const target = document.querySelector(`#${copyButton.dataset.copyTarget}`);
   await navigator.clipboard.writeText(target.textContent);
   copyButton.textContent = 'COPIED';
@@ -45,7 +45,7 @@ async function loadServers() {
   }
 }
 
-loadServers();
+if (serverSummary && serverList) loadServers();
 
 function showDashboardMessage(message, type = '') {
   dashboardMessage.textContent = message;
@@ -84,8 +84,8 @@ async function loadSetupOptions(guildId) {
   roleFields.hidden = !automationToggle.checked;
 }
 
-automationToggle.addEventListener('change', () => { roleFields.hidden = !automationToggle.checked; });
-guildSelect.addEventListener('change', async () => {
+if (automationToggle) automationToggle.addEventListener('change', () => { roleFields.hidden = !automationToggle.checked; });
+if (guildSelect) guildSelect.addEventListener('change', async () => {
   if (!guildSelect.value) return;
   try {
     showDashboardMessage('Loading channels and roles...');
@@ -94,7 +94,7 @@ guildSelect.addEventListener('change', async () => {
   } catch (error) { showDashboardMessage(error.message, 'error'); }
 });
 
-setupForm.addEventListener('submit', async event => {
+if (setupForm) setupForm.addEventListener('submit', async event => {
   event.preventDefault();
   const selectedExemptions = [...document.querySelector('#setup-exemptions').selectedOptions].map(option => option.value);
   const payload = { guildId: guildSelect.value, channelId: document.querySelector('#setup-channel').value, announcementChannelId: document.querySelector('#setup-announcement').value, time: document.querySelector('#setup-time').value, timezone: document.querySelector('#setup-timezone').value, title: document.querySelector('#setup-title').value, body: document.querySelector('#setup-body').value, roleAutomationEnabled: automationToggle.checked, activeRoleId: document.querySelector('#setup-active-role').value, inactiveRoleId: document.querySelector('#setup-inactive-role').value, exemptionRoleIds: selectedExemptions };
@@ -124,4 +124,4 @@ async function loadDashboard() {
   } catch (error) { showDashboardMessage(error.message, 'error'); }
 }
 
-loadDashboard();
+if (setupForm && dashboardStatus && dashboardMessage && setupFormWrap && loginButton) loadDashboard();

@@ -20,7 +20,7 @@
       <a href="#how-it-works">How it works</a>
       <a href="#servers">Servers</a>
       <a href="#commands">Commands</a>
-      <a href="#setup">Setup</a>
+      <a href="/dashboard.html">Open dashboard</a>
     </nav>
     <a class="header-invite" href="https://discord.com/oauth2/authorize?client_id=1540000371764633740&amp;permissions=215104&amp;scope=bot%20applications.commands" target="_blank" rel="noopener">Add to Discord <span>↗</span></a>
     <button class="icon-button" id="theme-toggle" type="button" aria-label="Switch color theme">◐</button>
@@ -86,29 +86,6 @@
         <div class="command-row"><code>/streaks</code><span>Show the community leaderboard</span></div>
         <div class="command-row"><code>/my-streak</code><span>Check your current and best run privately</span></div>
         <div class="command-row"><code>/forgive-inactive</code><span>Restore a member's saved roles</span></div>
-      </div>
-    </section>
-
-    <section class="dashboard-section" id="dashboard">
-      <div class="dashboard-inner section-grid">
-        <div class="dashboard-intro reveal"><p class="eyebrow">04 / Moderator control</p><h2>Set it up<br><em>without commands.</em></h2><p>Sign in with Discord to configure a server where you have Manage Server permission.</p><a class="button button-primary dashboard-login" href="/auth/login">Sign in with Discord <span>↗</span></a></div>
-        <div class="web-dashboard reveal reveal-delay" id="web-dashboard">
-          <div class="dashboard-welcome"><div><span class="dashboard-kicker">ATTENDANCE CONTROL ROOM</span><h3 id="dashboard-status">Sign in to begin</h3></div><a class="dashboard-logout" href="/auth/logout">Log out</a></div>
-          <div class="dashboard-message" id="dashboard-message" role="status"></div>
-          <div id="setup-form-wrap" hidden>
-            <form id="web-setup-form">
-              <label>Server<select id="setup-guild" required><option value="">Choose a server</option></select></label>
-              <div class="form-grid"><label>Attendance channel<select id="setup-channel" required><option value="">Choose a channel</option></select></label><label>Announcement channel<select id="setup-announcement"><option value="">No announcement channel</option></select></label></div>
-              <div class="form-grid"><label>Daily time<input id="setup-time" type="time" value="00:00" required></label><label>Timezone<input id="setup-timezone" value="Asia/Manila" required></label></div>
-              <label>Post title<input id="setup-title" value="Daily Attendance" maxlength="256"></label>
-              <label>Post message<textarea id="setup-body" rows="2">React with ✅ if you are online today.</textarea></label>
-              <label class="toggle-label"><input id="setup-automation" type="checkbox"><span class="toggle-ui"></span><span>Enable active / inactive role automation</span></label>
-              <div class="form-grid role-fields" id="role-fields" hidden><label>Active role<select id="setup-active-role"><option value="">Choose active role</option></select></label><label>Inactive role<select id="setup-inactive-role"><option value="">Choose inactive role</option></select></label></div>
-              <label>Exemption roles <span class="field-hint">Ctrl/Cmd-click for multiple</span><select id="setup-exemptions" multiple size="4"></select></label>
-              <button class="button button-primary save-button" type="submit">Save configuration <span>✓</span></button>
-            </form>
-          </div>
-        </div>
       </div>
     </section>
 

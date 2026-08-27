@@ -25,8 +25,8 @@ button { color: inherit; font: inherit; }
 .header-invite { background: var(--coral); box-shadow: 0 0 24px rgba(165, 41, 255, .35); color: white; font-size: 12px; font-weight: 600; margin-right: 13px; padding: 12px 15px; transition: box-shadow .2s ease, transform .2s ease; }.header-invite:hover { box-shadow: 0 0 34px rgba(201, 130, 255, .65); transform: translateY(-2px); }.header-invite span { margin-left: 12px; }
 .icon-button { background: transparent; border: 1px solid var(--line); border-radius: 50%; cursor: pointer; font-size: 18px; height: 38px; width: 38px; }
 .section-grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 24px; margin: 0 auto; max-width: 1240px; padding-left: 30px; padding-right: 30px; }
-.hero { min-height: 675px; padding-bottom: 80px; padding-top: 74px; }
-.hero-copy { grid-column: 1 / 7; padding-top: 38px; }
+.hero { background: linear-gradient(90deg, rgba(7, 6, 13, .97) 0%, rgba(7, 6, 13, .78) 42%, rgba(7, 6, 13, .2) 100%), url('/assets/exzy-hero.png') center / cover; min-height: 675px; padding-bottom: 80px; padding-top: 74px; position: relative; }
+.hero-copy { grid-column: 1 / 8; padding-top: 38px; position: relative; z-index: 1; }
 .eyebrow { align-items: center; color: var(--coral); display: flex; font: 500 11px "DM Mono", monospace; gap: 8px; letter-spacing: .12em; margin: 0 0 22px; text-transform: uppercase; }
 .live-dot { background: var(--coral); border-radius: 50%; box-shadow: 0 0 0 5px rgba(255,114,94,.13); height: 7px; width: 7px; }
 h1, h2 { font-size: clamp(50px, 6vw, 84px); letter-spacing: -.06em; line-height: .93; margin: 0; }
@@ -39,7 +39,7 @@ h1 em, h2 em { color: var(--coral); font-style: normal; }
 .text-link { border-bottom: 1px solid var(--line); padding-bottom: 4px; }
 .credit { color: var(--muted); font: 11px "DM Mono", monospace; margin-top: 82px; }
 .credit strong { color: var(--ink); }
-.hero-visual { background: #05030a; box-shadow: 0 0 55px rgba(158, 35, 255, .32); grid-column: 8 / 13; min-height: 520px; overflow: hidden; position: relative; }
+.hero-visual { display: none; }
 .hero-image { height: 100%; inset: 0; object-fit: cover; object-position: center; position: absolute; width: 100%; }
 .hero-visual .orbit, .hero-visual .dashboard-card, .hero-visual .float-label { display: none; }
 .orbit { border: 1px solid rgba(23,33,27,.25); border-radius: 50%; left: 50%; position: absolute; top: 50%; transform: translate(-50%, -50%); }
