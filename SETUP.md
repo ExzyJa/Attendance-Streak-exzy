@@ -81,20 +81,6 @@ DISCORD_CLIENT_SECRET=your-oauth2-client-secret
 DISCORD_REDIRECT_URI=https://your-railway-domain.up.railway.app/auth/callback
 ```
 
-For web-based moderator setup, open **Discord Developer Portal -> your application -> OAuth2**.
-Add the exact `DISCORD_REDIRECT_URI` above under **Redirects**, then copy the
-OAuth2 Client Secret into `DISCORD_CLIENT_SECRET`. On Railway, add these three
-variables in **Service -> Variables**, replacing the domain with your generated
-Railway domain. Moderators can then open the website, click **Sign in with
-Discord**, choose a server, and save its attendance settings without using a
-Discord command.
-
-Open the moderator dashboard directly at:
-
-```text
-https://your-railway-domain.up.railway.app/dashboard.html
-```
-
 For Railway or another persistent volume, also set:
 
 ```env

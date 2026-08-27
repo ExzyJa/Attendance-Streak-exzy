@@ -3,11 +3,6 @@
 For complete Discord invite, installation, channel, role, and command setup
 instructions, see [SETUP.md](SETUP.md).
 
-Moderators can configure the bot from the website after Discord OAuth2 is
-configured. The dashboard only shows servers where the signed-in user has
-Manage Server permission and where the bot is installed.
-Open it at `/dashboard.html` on the bot's public website.
-
 Posts a daily "who's online today" message with a ✅ reaction, and tracks each
 user's consecutive-day streak. `/streaks` shows a leaderboard (name + 🔥
 streak), like the Accepted list in your screenshot, instead of editing
@@ -35,9 +30,6 @@ nicknames.
   in again restores the active role.
 - Moderators can use `/forgive-inactive user` to remove the inactive role and
   restore the saved roles from before the inactive transition.
-- The website includes a moderator dashboard. After Discord OAuth2 is
-  configured, moderators can sign in, choose an installed server, select its
-  channels and roles, and save attendance settings from the web.
 - Role automation is optional. Set `enable-role-automation` to `true` in
   `/setup-attendance` and choose both role options to activate it. Leave it
   false to run attendance and streak tracking without any role changes.
