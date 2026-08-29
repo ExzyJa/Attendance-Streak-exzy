@@ -124,24 +124,69 @@ function buildDailyEmbed(guildConfig, dateStr, entries) {
   return embed;
 }
 
+function getMemberRoleSnapshot(member) {
+  if (!member || !member.roles || !member.roles.cache) return [];
+  return member.roles.cache
+    .filter(role => role.id !== member.guild.id && !role.managed)
+    .map(role => role.id);
+}
+
+async function saveCurrentMemberRoles(member, config) {
+  if (!member || !member.roles || !member.roles.cache) return false;
+  if (config.role_automation_enabled !== 1 || !config.inactive_role_id) return false;
+  if (hasExemptionRole(member, config.exemption_role_id)) return false;
+
+  const snapshot = getMemberRoleSnapshot(member);
+  if (!snapshot.length) return false;
+
+  db.saveRoleSnapshot(member.guild.id, member.id, snapshot);
+  return true;
+}
+
 async function updateAttendanceRoles(member, config, inactive) {
-  if (!member || config.role_automation_enabled !== 1 || (!config.active_role_id && !config.inactive_role_id)) return false;
+  if (!member || config.role_automation_enabled !== 1 || !config.inactive_role_id) return false;
   if (hasExemptionRole(member, config.exemption_role_id)) return false;
 
   try {
+    const currentSnapshot = getMemberRoleSnapshot(member);
+    const savedRoleIds = db.getRoleSnapshot(member.guild.id, member.id) || currentSnapshot;
+
     if (inactive) {
-      db.saveRoleSnapshot(
-        member.guild.id,
-        member.id,
-        member.roles.cache.filter(role => role.id !== member.guild.id && !role.managed).map(role => role.id)
-      );
-      if (config.active_role_id) await member.roles.remove(config.active_role_id);
-      if (config.inactive_role_id) await member.roles.add(config.inactive_role_id);
-    } else {
-      if (config.inactive_role_id) await member.roles.remove(config.inactive_role_id);
-      if (config.active_role_id) await member.roles.add(config.active_role_id);
-      db.removeRoleSnapshot(member.guild.id, member.id);
+      const rolesToRemove = Array.from(new Set([
+        ...savedRoleIds,
+        ...(config.active_role_id ? [config.active_role_id] : []),
+      ]));
+
+      for (const roleId of rolesToRemove) {
+        if (member.roles.cache.has(roleId)) {
+          await member.roles.remove(roleId);
+        }
+      }
+
+      if (config.inactive_role_id && !member.roles.cache.has(config.inactive_role_id)) {
+        await member.roles.add(config.inactive_role_id);
+      }
+
+      db.saveRoleSnapshot(member.guild.id, member.id, savedRoleIds);
+      return true;
     }
+
+    if (config.inactive_role_id && member.roles.cache.has(config.inactive_role_id)) {
+      await member.roles.remove(config.inactive_role_id);
+    }
+
+    const restoredRoles = db.getRoleSnapshot(member.guild.id, member.id) || [];
+    for (const roleId of restoredRoles) {
+      if (roleId !== config.inactive_role_id && !member.roles.cache.has(roleId)) {
+        await member.roles.add(roleId);
+      }
+    }
+
+    if (config.active_role_id && !member.roles.cache.has(config.active_role_id)) {
+      await member.roles.add(config.active_role_id);
+    }
+
+    db.removeRoleSnapshot(member.guild.id, member.id);
     return true;
   } catch (err) {
     console.error(`[roles] Failed to update ${member.user.tag}:`, err.message);

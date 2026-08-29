@@ -126,23 +126,21 @@ channel: #attendance
 time: 09:00
 timezone: Asia/Manila
 enable-role-automation: true
-active-role: @Active
 inactive-role: @Inactive
 exemption-roles: @Exempt, @Staff
 ```
 
-The `active-role` and `inactive-role` options are required when role automation is enabled. The exemption roles are optional; enter one or more role mentions or IDs separated by commas or spaces.
+The `inactive-role` is the role used when the member is placed on hold. The bot also saves each member's latest active access roles when they check in and restores them later when they are forgiven. The `active-role` option remains optional as a fallback if you want to re-add a shared role as well. The exemption roles are optional; enter one or more role mentions or IDs separated by commas or spaces.
 The `announcement-channel` is optional. When set, the bot mentions members after successfully assigning the inactive role because they missed attendance.
 
 ## How automatic roles work
 
 1. A member reacts with the checkmark on the current attendance post.
-2. The bot records the member's attendance and updates the streak.
-3. If the streak reaches zero after absence processing, the bot saves the member's current roles.
-4. The bot removes the active role and adds the inactive role.
-5. If the member checks in again, the bot removes the inactive role and restores the active role.
-6. Members who have any configured exemption role are never changed by the bot.
-7. If an announcement channel is configured, the bot announces members placed on hold after missing attendance.
+2. The bot records the member's attendance, updates the streak, and saves their currently active access roles.
+3. If the streak reaches zero after absence processing, the bot removes the saved access roles and adds the inactive role.
+4. If the member checks in again, the bot removes the inactive role and restores the saved active access roles.
+5. Members who have any configured exemption role are never changed by the bot.
+6. If an announcement channel is configured, the bot announces members placed on hold after missing attendance.
 
 The bot can only change roles below its highest role and only when it has the Manage Roles permission.
 

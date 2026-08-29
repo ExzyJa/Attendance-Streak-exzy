@@ -159,7 +159,8 @@ function saveRoleSnapshot(guildId, userId, roleIds) {
   db.prepare(`
     INSERT INTO role_snapshots (guild_id, user_id, role_ids)
     VALUES (?, ?, ?)
-    ON CONFLICT(guild_id, user_id) DO NOTHING
+    ON CONFLICT(guild_id, user_id) DO UPDATE SET
+      role_ids = excluded.role_ids
   `).run(guildId, userId, JSON.stringify(roleIds));
 }
 

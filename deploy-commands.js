@@ -18,9 +18,9 @@ const commands = [
     .addStringOption(opt =>
       opt.setName('message').setDescription('Embed body text').setRequired(false))
     .addBooleanOption(opt =>
-      opt.setName('enable-role-automation').setDescription('Enable inactive/active role changes').setRequired(false))
+      opt.setName('enable-role-automation').setDescription('Enable inactive role changes and saved-role restoration').setRequired(false))
     .addRoleOption(opt =>
-      opt.setName('active-role').setDescription('Role to restore when a user checks in').setRequired(false))
+      opt.setName('active-role').setDescription('Optional fallback active role to re-add when a member checks in again').setRequired(false))
     .addRoleOption(opt =>
       opt.setName('inactive-role').setDescription('Role to add when the streak reaches zero').setRequired(false))
     .addStringOption(opt =>

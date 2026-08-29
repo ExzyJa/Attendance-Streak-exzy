@@ -24,14 +24,14 @@ nicknames.
   - Anything older / never → streak resets to 1
 - `/streaks` posts a leaderboard sorted by current streak.
 - `/my-streak` privately tells a user their own streak and shields left.
-- When a member's streak reaches zero, the bot can remove an active role and
-  add an inactive role. It saves the member's previous roles. A configured
-  exemption role prevents all automatic role changes for its members. Checking
-  in again restores the active role.
+- When a member's streak reaches zero, the bot can remove the saved active
+  access roles and add an inactive role. It saves the member's latest active
+  roles when they check in, so the bot can restore them later. A configured
+  exemption role prevents all automatic role changes for its members.
 - Moderators can use `/forgive-inactive user` to remove the inactive role and
   restore the saved roles from before the inactive transition.
 - Role automation is optional. Set `enable-role-automation` to `true` in
-  `/setup-attendance` and choose both role options to activate it. Leave it
+  `/setup-attendance` and choose an inactive role to activate it. Leave it
   false to run attendance and streak tracking without any role changes.
 
 Old reactions on yesterday's (or older) messages are ignored — only the
