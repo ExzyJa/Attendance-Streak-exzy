@@ -144,8 +144,18 @@ async function saveCurrentMemberRoles(member, config) {
 }
 
 async function updateAttendanceRoles(member, config, inactive) {
-  if (!member || config.role_automation_enabled !== 1 || !config.inactive_role_id) return false;
-  if (hasExemptionRole(member, config.exemption_role_id)) return false;
+  if (!member) {
+    console.warn('[roles] Cannot update roles: member could not be fetched.');
+    return false;
+  }
+  if (config.role_automation_enabled !== 1 || !config.inactive_role_id) {
+    console.warn(`[roles] Skipping ${member.user.tag}: automation is disabled or no inactive role is configured.`);
+    return false;
+  }
+  if (hasExemptionRole(member, config.exemption_role_id)) {
+    console.log(`[roles] Skipping exempt member ${member.user.tag}.`);
+    return false;
+  }
 
   try {
     const currentSnapshot = getMemberRoleSnapshot(member);
@@ -240,14 +250,20 @@ async function postAttendance(client, guildConfig) {
         const guild = client.guilds.cache.get(guildConfig.guild_id);
         const member = guild ? await guild.members.fetch(r.userId).catch(() => null) : null;
         const roleUpdated = await updateAttendanceRoles(member, guildConfig, true);
-        if (roleUpdated && guildConfig.announcement_channel_id) {
+        if (!roleUpdated) {
+          console.warn(`[roles] Reset recorded for ${r.userId}, but inactive-role update did not complete.`);
+        } else if (guildConfig.announcement_channel_id) {
           const announcementChannel = await client.channels.fetch(guildConfig.announcement_channel_id).catch(() => null);
           if (announcementChannel) {
             const inactiveRoleMention = guildConfig.inactive_role_id ? ` and given <@&${guildConfig.inactive_role_id}>` : '';
             await announcementChannel.send(`<@${r.userId}> has been placed on hold${inactiveRoleMention} because they did not participate in attendance.`).catch(err =>
               console.error(`[announcement] Failed to notify ${r.userId}:`, err.message)
             );
+          } else {
+            console.warn(`[announcement] Could not fetch channel ${guildConfig.announcement_channel_id}.`);
           }
+        } else {
+          console.log(`[announcement] No announcement channel configured for ${r.userId}.`);
         }
       }
       if (r.status === 'shielded') {
