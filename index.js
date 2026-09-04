@@ -278,6 +278,7 @@ const client = new Client({
 
 // guildId -> node-cron task, so we can reschedule after /setup-attendance
 const scheduledTasks = new Map();
+const attendanceRefreshQueues = new Map();
 
 function parseExemptionRoleIds(value) {
   if (!value) return [];
@@ -310,22 +311,36 @@ function scheduleGuild(config) {
 // current reactions — including each person's fire streak + shields left,
 // so nobody needs to run /my-streak just to see it. Called after every add/remove.
 async function refreshAttendanceEmbed(message, config, guildId, dateStr) {
-  const userIds = db.getCheckins(guildId, dateStr);
-  const guild = message.guild;
-  const currentMonth = monthStr(dateStr);
-  const entries = [];
-  for (const uid of userIds) {
-    const member = await guild.members.fetch(uid).catch(() => null);
-    const name = member ? member.displayName : `Unknown user (${uid})`;
-    const row = db.getStreak(guildId, uid);
-    const streak = row ? row.current_streak : 0;
-    const shieldsLeft = db.shieldsRemaining(row, currentMonth);
-    entries.push({ name, streak, shieldsLeft });
+  const previousRefresh = attendanceRefreshQueues.get(message.id) || Promise.resolve();
+  const currentRefresh = previousRefresh.catch(() => {}).then(async () => {
+    // Read the check-ins after earlier refreshes finish so the final edit has
+    // the complete current state, even when several reactions arrive together.
+    const userIds = db.getCheckins(guildId, dateStr);
+    const guild = message.guild;
+    const currentMonth = monthStr(dateStr);
+    const entries = [];
+    for (const uid of userIds) {
+      const member = await guild.members.fetch(uid).catch(() => null);
+      const name = member ? member.displayName : `Unknown user (${uid})`;
+      const row = db.getStreak(guildId, uid);
+      const streak = row ? row.current_streak : 0;
+      const shieldsLeft = db.shieldsRemaining(row, currentMonth);
+      entries.push({ name, streak, shieldsLeft });
+    }
+    const embed = buildDailyEmbed(config, dateStr, entries);
+    await message.edit({ embeds: [embed] }).catch(err =>
+      console.error('[embed] failed to refresh attendance post:', err)
+    );
+  });
+
+  attendanceRefreshQueues.set(message.id, currentRefresh);
+  try {
+    await currentRefresh;
+  } finally {
+    if (attendanceRefreshQueues.get(message.id) === currentRefresh) {
+      attendanceRefreshQueues.delete(message.id);
+    }
   }
-  const embed = buildDailyEmbed(config, dateStr, entries);
-  await message.edit({ embeds: [embed] }).catch(err =>
-    console.error('[embed] failed to refresh attendance post:', err)
-  );
 }
 
 // If the bot was offline at the exact scheduled minute (redeploy, restart,

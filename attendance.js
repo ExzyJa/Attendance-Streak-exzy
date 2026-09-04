@@ -276,9 +276,8 @@ async function postAttendance(client, guildConfig) {
 
   const embed = buildDailyEmbed(guildConfig, dateStr, []);
   const message = await channel.send({ content: '@everyone', embeds: [embed] });
-  await message.react(CHECK_EMOJI);
-
   db.setActiveMessage(guildConfig.guild_id, message.id, channel.id, dateStr);
+  await message.react(CHECK_EMOJI);
 
   return message;
 }
