@@ -29,7 +29,7 @@ async function loadServers() {
       : `${data.count} Discord communities are keeping their rhythm with Attendance Streak.`;
     serverList.innerHTML = data.servers.length === 0
       ? '<div class="server-loading">No connected servers yet.</div>'
-      : data.servers.map((server, index) => `<div class="server-item"><span class="server-index">${String(index + 1).padStart(2, '0')}</span><span class="server-avatar">${server.name.slice(0, 2).toUpperCase()}</span><strong>${server.name}</strong><span class="server-status">CONNECTED</span></div>`).join('');
+      : data.servers.map((server, index) => `<div class="server-item"><span class="server-index">${index < 10 ? String(index + 1).padStart(2, '0') : '10+'}</span><span class="server-avatar">${server.name.slice(0, 2).toUpperCase()}</span><strong>${server.name}</strong><span class="server-status">CONNECTED</span></div>`).join('');
   } catch {
     serverSummary.textContent = 'The bot is not connected yet. Check back after it comes online.';
     serverList.innerHTML = '<div class="server-loading">Server list unavailable.</div>';

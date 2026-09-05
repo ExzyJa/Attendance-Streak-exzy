@@ -227,7 +227,8 @@ http
       const servers = client.guilds.cache.map(guild => ({
         name: guild.name,
         icon: guild.iconURL({ extension: 'png', size: 64 }),
-      })).sort((first, second) => first.name.localeCompare(second.name));
+        joinedTimestamp: guild.joinedTimestamp || Number.MAX_SAFE_INTEGER,
+      })).sort((first, second) => first.joinedTimestamp - second.joinedTimestamp);
       res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
       res.end(JSON.stringify({ count: servers.length, servers }));
       return;
