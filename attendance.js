@@ -246,13 +246,13 @@ async function postAttendance(client, guildConfig) {
     const monthKey = monthStr(prevDate);
     const results = db.processAbsences(guildConfig.guild_id, prevDate, prevBeforeThat, monthKey);
     for (const r of results) {
-      if (r.status === 'reset' && r.previousStreak > 0) {
+      if (r.status === 'reset') {
         const guild = client.guilds.cache.get(guildConfig.guild_id);
         const member = guild ? await guild.members.fetch(r.userId).catch(() => null) : null;
         const roleUpdated = await updateAttendanceRoles(member, guildConfig, true);
         if (!roleUpdated) {
           console.warn(`[roles] Reset recorded for ${r.userId}, but inactive-role update did not complete.`);
-        } else if (guildConfig.announcement_channel_id) {
+        } else if (r.previousStreak > 0 && guildConfig.announcement_channel_id) {
           const announcementChannel = await client.channels.fetch(guildConfig.announcement_channel_id).catch(() => null);
           if (announcementChannel) {
             const inactiveRoleMention = guildConfig.inactive_role_id ? ` and given <@&${guildConfig.inactive_role_id}>` : '';

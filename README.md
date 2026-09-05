@@ -111,7 +111,7 @@ would otherwise have silently skipped that day.
    (needed to show display names on the leaderboard).
 4. **OAuth2 → General**, copy the **Application ID** (this is `CLIENT_ID`).
 5. **OAuth2 → URL Generator**: scopes `bot` + `applications.commands`;
-   bot permissions: `Send Messages`, `Embed Links`, `Add Reactions`,
+  bot permissions: `Send Messages`, `Embed Links`, `Add Reactions`, `View Audit Log`,
   `Read Message History`, `Manage Roles`, `Mention Everyone` (only if you want the
    `@everyone` ping — remove it from `attendance.js` if not).
 6. Open the generated URL to invite the bot to your server.

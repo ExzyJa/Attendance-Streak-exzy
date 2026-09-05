@@ -8,6 +8,7 @@ const {
   GatewayIntentBits,
   Partials,
   Events,
+  AuditLogEvent,
   PermissionFlagsBits,
 } = require('discord.js');
 const cron = require('node-cron');
@@ -379,6 +380,32 @@ async function catchUpMissedPosts(configs) {
   }
 }
 
+async function announceManualInactiveRole(member, config) {
+  if (!config?.announcement_channel_id || !config.inactive_role_id) return;
+
+  const auditLogs = await member.guild.fetchAuditLogs({
+    type: AuditLogEvent.MemberRoleUpdate,
+    limit: 10,
+  }).catch(() => null);
+  if (!auditLogs) return;
+
+  const roleUpdate = auditLogs.entries.find(entry => {
+    if (entry.target?.id !== member.id || entry.executor?.bot) return false;
+    if (Date.now() - entry.createdTimestamp > 10000) return false;
+    return entry.changes?.some(change =>
+      change.key === '$add' && change.new?.some(role => role.id === config.inactive_role_id)
+    );
+  });
+  if (!roleUpdate) return;
+
+  const channel = await client.channels.fetch(config.announcement_channel_id).catch(() => null);
+  if (!channel?.isTextBased()) return;
+
+  await channel.send(`⚠️ **THE FOOL — ON HOLD NOTICE** ⚠️\n\n${member} has **failed to follow THE FOOL RULES** and has been moved to the **ON HOLD** channel.\n\nPlease review and follow the rules before returning to regular activities.\n\n📜 <#1516306080743952485>`).catch(err =>
+    console.error(`[announcement] Failed to notify manual inactive role for ${member.id}:`, err.message)
+  );
+}
+
 client.once(Events.ClientReady, async () => {
   console.log(`Logged in as ${client.user.tag}`);
   const configs = db.getAllConfigs();
@@ -515,6 +542,17 @@ client.on(Events.InteractionCreate, async interaction => {
     } else {
       await interaction.reply({ content: 'Something went wrong.', ephemeral: true }).catch(() => {});
     }
+  }
+});
+
+client.on(Events.GuildMemberUpdate, async (oldMember, newMember) => {
+  const inactiveRoleId = db.getConfig(newMember.guild.id)?.inactive_role_id;
+  if (!inactiveRoleId || oldMember.roles.cache.has(inactiveRoleId) || !newMember.roles.cache.has(inactiveRoleId)) return;
+
+  try {
+    await announceManualInactiveRole(newMember, db.getConfig(newMember.guild.id));
+  } catch (err) {
+    console.error('[roles] Failed to process manual inactive-role announcement:', err);
   }
 });
 
