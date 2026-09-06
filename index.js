@@ -535,7 +535,7 @@ client.on(Events.InteractionCreate, async interaction => {
       const embed = new EmbedBuilder()
         .setColor(0x5865f2)
         .setTitle(`⚠️ ${title}`)
-        .setDescription(`**${subject}**`)
+        .setDescription(`**${subject}**\n\n${requiredNotice}`)
         .addFields({ name: 'Details', value: message || 'No details provided.' })
         .setFooter({ text: 'Please react with ✅ to confirm you have read this announcement.' });
 
@@ -545,11 +545,6 @@ client.on(Events.InteractionCreate, async interaction => {
         allowedMentions: { parse: ['everyone'] },
       });
       await sentMessage.react('✅');
-
-      await sentMessage.reply({
-        content: requiredNotice,
-        allowedMentions: { parse: [] },
-      });
 
       return interaction.reply({
         content: `✅ Announcement posted in ${channel}. Everyone was mentioned and the ✅ reaction has already been added.`,
