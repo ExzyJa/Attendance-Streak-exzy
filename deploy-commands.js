@@ -28,6 +28,19 @@ const commands = [
     .toJSON(),
 
   new SlashCommandBuilder()
+    .setName('announcement')
+    .setDescription('Post an announcement that members must react to confirm they read it')
+    .addChannelOption(opt =>
+      opt.setName('channel').setDescription('Channel to post the announcement in').setRequired(true))
+    .addStringOption(opt =>
+      opt.setName('title').setDescription('Announcement title').setRequired(true))
+    .addStringOption(opt =>
+      opt.setName('subject').setDescription('Announcement subject or headline').setRequired(true))
+    .addStringOption(opt =>
+      opt.setName('message').setDescription('Announcement details').setRequired(true))
+    .toJSON(),
+
+  new SlashCommandBuilder()
     .setName('post-attendance-now')
     .setDescription('Manually post today\'s attendance message right now')
     .toJSON(),

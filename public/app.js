@@ -2,6 +2,7 @@ const themeToggle = document.querySelector('#theme-toggle');
 const copyButton = document.querySelector('.copy-button');
 const serverSummary = document.querySelector('#server-summary');
 const serverList = document.querySelector('#server-list');
+const siteVersion = document.querySelector('.site-version');
 
 if (localStorage.getItem('attendance-theme') === 'dark') {
   document.body.classList.add('dark');
@@ -37,3 +38,17 @@ async function loadServers() {
 }
 
 if (serverSummary && serverList) loadServers();
+
+async function loadVersion() {
+  if (!siteVersion) return;
+  try {
+    const response = await fetch('/api/version');
+    if (!response.ok) throw new Error('Version unavailable');
+    const data = await response.json();
+    siteVersion.textContent = `v${data.version}`;
+  } catch {
+    // Keep the package version baked into the HTML if the API is unavailable.
+  }
+}
+
+loadVersion();

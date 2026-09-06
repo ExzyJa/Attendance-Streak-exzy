@@ -3,6 +3,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const { version } = require('./package.json');
 const {
   Client,
   GatewayIntentBits,
@@ -162,6 +163,11 @@ http
     if (requestUrl.pathname === '/api/me') {
       const session = getWebSession(req);
       sendJson(res, 200, session ? { authenticated: true, user: session.user } : { authenticated: false });
+      return;
+    }
+
+    if (requestUrl.pathname === '/api/version') {
+      sendJson(res, 200, { version });
       return;
     }
 
@@ -475,6 +481,39 @@ client.on(Events.InteractionCreate, async interaction => {
 
       return interaction.reply({
         content: `✅ Attendance will post daily in ${channel} at **${match[1].padStart(2, '0')}:${match[2]}** (${timezone}) — that time also acts as the daily reset ("midnight") for streaks and shields. Use \`/post-attendance-now\` to test it immediately.`,
+        ephemeral: true,
+      });
+    }
+
+    if (interaction.commandName === 'announcement') {
+      if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)) {
+        return interaction.reply({ content: 'You need the Manage Server permission to do this.', ephemeral: true });
+      }
+
+      const channel = interaction.options.getChannel('channel', true);
+      if (!channel || !channel.isTextBased() || channel.isThread()) {
+        return interaction.reply({ content: 'Choose a valid text channel for the announcement.', ephemeral: true });
+      }
+
+      const title = interaction.options.getString('title', true).slice(0, 256);
+      const subject = interaction.options.getString('subject', true).slice(0, 1024);
+      const message = interaction.options.getString('message', true).slice(0, 2000);
+      const requiredNotice = '⚠️ Reacting to this announcement is mandatory. Officers will know who has already read it.';
+
+      const embed = new EmbedBuilder()
+        .setColor(0x5865f2)
+        .setTitle(title)
+        .setDescription(subject)
+        .addFields({ name: 'Details', value: message })
+        .setFooter({ text: 'Please react with ✅ to confirm you have read this announcement.' });
+
+      await channel.send({
+        embeds: [embed],
+        content: requiredNotice,
+      });
+
+      return interaction.reply({
+        content: `✅ Announcement posted in ${channel}. Members must react with ✅ to confirm they read it.`,
         ephemeral: true,
       });
     }

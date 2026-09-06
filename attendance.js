@@ -1,6 +1,7 @@
 const { EmbedBuilder } = require('discord.js');
 const db = require('./db');
 const { todayStr, dateStrPlusDays, monthStr, getStreakTier, getFireIcon, ANSI_RESET } = require('./utils');
+const { version } = require('./package.json');
 
 const CHECK_EMOJI = '✅';
 const SHIELD_EMOJI = '🛡️';
@@ -93,7 +94,7 @@ function buildDailyEmbed(guildConfig, dateStr, entries) {
     .setColor(0xf1c40f)
     .setTitle(guildConfig.title)
     .setDescription(guildConfig.body)
-    .setFooter({ text: 'React with ✅ to check in today' })
+    .setFooter({ text: `React with ✅ to check in today • v${version}` })
     .setTimestamp(new Date());
 
   if (entries.length === 0) {

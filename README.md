@@ -157,6 +157,15 @@ Railway runs the bot as a persistent process, which is what this bot needs
 The code already includes a tiny built-in HTTP server so Railway's health
 checks pass, and reads `DB_PATH`/`PORT` from the environment automatically.
 
+### Automatic version updates
+
+Every push to `main` runs the GitHub Actions workflow in
+`.github/workflows/bump-version.yml`, which increments the patch version in
+`package.json` and pushes the version commit back to GitHub. Railway then
+deploys that commit. The running version appears in the footer of each daily
+Discord check-in embed beside Discord's check-in timestamp, and on the website
+footer.
+
 1. Push this project to a GitHub repo (`git init && git add . && git commit -m "init"`,
    create a repo on GitHub, `git remote add origin <url> && git push -u origin main`).
 2. On https://railway.app: **New Project → Deploy from GitHub repo** → pick the repo.

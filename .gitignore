@@ -2,6 +2,5 @@
 .env.*
 !.env.example
 node_modules/
-*.sqlite
 *.sqlite-shm
 *.sqlite-wal
