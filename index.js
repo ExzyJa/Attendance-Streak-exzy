@@ -11,6 +11,7 @@ const {
   Events,
   AuditLogEvent,
   PermissionFlagsBits,
+  EmbedBuilder,
 } = require('discord.js');
 const cron = require('node-cron');
 
