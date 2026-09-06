@@ -163,8 +163,9 @@ async function updateAttendanceRoles(member, config, inactive) {
     const savedRoleIds = db.getRoleSnapshot(member.guild.id, member.id) || currentSnapshot;
 
     if (inactive) {
+      const snapshotToProtect = savedRoleIds.length ? savedRoleIds : currentSnapshot;
       const rolesToRemove = Array.from(new Set([
-        ...savedRoleIds,
+        ...snapshotToProtect,
         ...currentSnapshot,
         ...(config.active_role_id ? [config.active_role_id] : []),
       ])).filter(roleId => roleId && roleId !== config.inactive_role_id);
@@ -179,7 +180,7 @@ async function updateAttendanceRoles(member, config, inactive) {
         await member.roles.add(config.inactive_role_id);
       }
 
-      db.saveRoleSnapshot(member.guild.id, member.id, savedRoleIds.length ? savedRoleIds : currentSnapshot);
+      db.saveRoleSnapshot(member.guild.id, member.id, snapshotToProtect);
       return true;
     }
 
@@ -214,13 +215,16 @@ async function forgiveInactiveRole(member, config) {
   if (!roleIds) return false;
 
   try {
-    if (member.roles.cache.has(config.inactive_role_id)) {
+    if (config.inactive_role_id && member.roles.cache.has(config.inactive_role_id)) {
       await member.roles.remove(config.inactive_role_id);
     }
     for (const roleId of roleIds) {
       if (roleId !== config.inactive_role_id && !member.roles.cache.has(roleId)) {
         await member.roles.add(roleId);
       }
+    }
+    if (config.active_role_id && !member.roles.cache.has(config.active_role_id)) {
+      await member.roles.add(config.active_role_id);
     }
     db.removeRoleSnapshot(member.guild.id, member.id);
     return true;
@@ -251,6 +255,9 @@ async function postAttendance(client, guildConfig) {
       if (r.status === 'reset') {
         const guild = client.guilds.cache.get(guildConfig.guild_id);
         const member = guild ? await guild.members.fetch(r.userId).catch(() => null) : null;
+        if (member) {
+          await saveCurrentMemberRoles(member, guildConfig);
+        }
         const roleUpdated = await updateAttendanceRoles(member, guildConfig, true);
         if (!roleUpdated) {
           console.warn(`[roles] Reset recorded for ${r.userId}, but inactive-role update did not complete.`);
