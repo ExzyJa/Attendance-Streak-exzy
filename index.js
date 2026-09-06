@@ -417,7 +417,19 @@ async function announceManualInactiveRole(member, config) {
   const channel = await client.channels.fetch(config.announcement_channel_id).catch(() => null);
   if (!channel?.isTextBased()) return;
 
-  await channel.send(`⚠️ **THE FOOL — ON HOLD NOTICE** ⚠️\n\n${member} has **failed to follow THE FOOL RULES** and has been moved to the **ON HOLD** channel.\n\nPlease review and follow the rules before returning to regular activities.\n\n📜 <#1516306080743952485>`).catch(err =>
+  const ansiNotice = [
+    '```ansi',
+    '\u001b[1;31m⚠️ THE FOOL — ON HOLD NOTICE ⚠️\u001b[0m',
+    '',
+    `${member} has failed to follow THE FOOL RULES and has been moved to the ON HOLD status.`,
+    '',
+    'Please review and follow the rules before returning to regular activities.',
+    '',
+    '📜 <#1516306080743952485>',
+    '```',
+  ].join('\n');
+
+  await channel.send(ansiNotice).catch(err =>
     console.error(`[announcement] Failed to notify manual inactive role for ${member.id}:`, err.message)
   );
 }
