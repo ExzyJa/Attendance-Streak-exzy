@@ -319,12 +319,20 @@ function scheduleGuild(config) {
 // Re-renders the "Checked in (N)" list on today's attendance post to reflect
 // current reactions — including each person's fire streak + shields left,
 // so nobody needs to run /my-streak just to see it. Called after every add/remove.
+async function getLiveCheckedInUserIds(message, guildId, dateStr) {
+  const reaction = message.reactions.cache.get(CHECK_EMOJI);
+  const reactionUsers = reaction ? await reaction.users.fetch().catch(() => new Map()) : new Map();
+  const reactionIds = [...reactionUsers.keys()].filter(id => id !== message.author?.id);
+  const databaseIds = db.getCheckins(guildId, dateStr);
+  return [...new Set([...reactionIds, ...databaseIds])];
+}
+
 async function refreshAttendanceEmbed(message, config, guildId, dateStr) {
   const previousRefresh = attendanceRefreshQueues.get(message.id) || Promise.resolve();
   const currentRefresh = previousRefresh.catch(() => {}).then(async () => {
     // Read the check-ins after earlier refreshes finish so the final edit has
     // the complete current state, even when several reactions arrive together.
-    const userIds = db.getCheckins(guildId, dateStr);
+    const userIds = await getLiveCheckedInUserIds(message, guildId, dateStr);
     const guild = message.guild;
     const currentMonth = monthStr(dateStr);
     const entries = [];
