@@ -165,8 +165,9 @@ async function updateAttendanceRoles(member, config, inactive) {
     if (inactive) {
       const rolesToRemove = Array.from(new Set([
         ...savedRoleIds,
+        ...currentSnapshot,
         ...(config.active_role_id ? [config.active_role_id] : []),
-      ]));
+      ])).filter(roleId => roleId && roleId !== config.inactive_role_id);
 
       for (const roleId of rolesToRemove) {
         if (member.roles.cache.has(roleId)) {
@@ -178,7 +179,7 @@ async function updateAttendanceRoles(member, config, inactive) {
         await member.roles.add(config.inactive_role_id);
       }
 
-      db.saveRoleSnapshot(member.guild.id, member.id, savedRoleIds);
+      db.saveRoleSnapshot(member.guild.id, member.id, savedRoleIds.length ? savedRoleIds : currentSnapshot);
       return true;
     }
 

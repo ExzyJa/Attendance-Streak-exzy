@@ -648,7 +648,11 @@ client.on(Events.MessageReactionAdd, async (reaction, user) => {
     const member = await reaction.message.guild.members.fetch(user.id).catch(() => null);
     if (member) {
       await saveCurrentMemberRoles(member, config);
-      await updateAttendanceRoles(member, config, false);
+      if (result.status === 'updated' && result.current_streak === 0) {
+        await updateAttendanceRoles(member, config, true);
+      } else {
+        await updateAttendanceRoles(member, config, false);
+      }
     }
     if (result.status === 'updated' || result.status === 'new') {
       console.log(`[streak] ${user.tag} in guild ${guildId} -> ${result.current_streak} day streak`);
