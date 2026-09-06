@@ -495,6 +495,17 @@ client.on(Events.InteractionCreate, async interaction => {
         return interaction.reply({ content: 'Choose a valid text channel for the announcement.', ephemeral: true });
       }
 
+      const botMember = interaction.guild?.members?.me || await interaction.guild?.members.fetchMe().catch(() => null);
+      const canSend = botMember ? channel.permissionsFor(botMember)?.has(PermissionFlagsBits.SendMessages) : true;
+      const canEmbed = botMember ? channel.permissionsFor(botMember)?.has(PermissionFlagsBits.EmbedLinks) : true;
+
+      if (!canSend || !canEmbed) {
+        return interaction.reply({
+          content: 'I need permission to send messages and embed links in that channel before posting the announcement.',
+          ephemeral: true,
+        });
+      }
+
       const title = interaction.options.getString('title', true).slice(0, 256);
       const subject = interaction.options.getString('subject', true).slice(0, 1024);
       const message = interaction.options.getString('message', true).slice(0, 2000);
@@ -578,9 +589,9 @@ client.on(Events.InteractionCreate, async interaction => {
   } catch (err) {
     console.error('[interaction] error:', err);
     if (interaction.deferred || interaction.replied) {
-      await interaction.followUp({ content: 'Something went wrong.', ephemeral: true }).catch(() => {});
+      await interaction.followUp({ content: `Something went wrong: ${err.message}`.slice(0, 1900), ephemeral: true }).catch(() => {});
     } else {
-      await interaction.reply({ content: 'Something went wrong.', ephemeral: true }).catch(() => {});
+      await interaction.reply({ content: `Something went wrong: ${err.message}`.slice(0, 1900), ephemeral: true }).catch(() => {});
     }
   }
 });
