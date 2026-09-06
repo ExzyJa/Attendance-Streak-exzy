@@ -512,20 +512,15 @@ client.on(Events.InteractionCreate, async interaction => {
       const message = interaction.options.getString('message', true).slice(0, 2000);
       const requiredNotice = '⚠️ Reacting to this announcement is mandatory. Officers will know who has already read it.';
 
-      const embed = new EmbedBuilder()
-        .setColor(0x5865f2)
-        .setTitle(title)
-        .setDescription(subject)
-        .addFields({ name: 'Details', value: message })
-        .setFooter({ text: 'Please react with ✅ to confirm you have read this announcement.' });
-
-      await channel.send({
-        embeds: [embed],
-        content: requiredNotice,
+      const announcementContent = `@everyone\n**${title}**\n**${subject}**\n\n${message}\n\n${requiredNotice}`;
+      const sentMessage = await channel.send({
+        content: announcementContent,
+        allowedMentions: { parse: ['everyone'] },
       });
+      await sentMessage.react('✅');
 
       return interaction.reply({
-        content: `✅ Announcement posted in ${channel}. Members must react with ✅ to confirm they read it.`,
+        content: `✅ Announcement posted in ${channel}. Everyone was mentioned and the ✅ reaction has already been added.`,
         ephemeral: true,
       });
     }
