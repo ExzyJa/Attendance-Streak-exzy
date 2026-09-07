@@ -241,8 +241,9 @@ http
       return;
     }
 
-    const requestedPath = req.url === '/' ? '/index.html' : req.url.split('?')[0];
-    const filePath = path.join(__dirname, 'public', path.normalize(requestedPath));
+    const requestedPath = requestUrl.pathname === '/' ? '/index.html' : requestUrl.pathname;
+    const publicRoot = path.resolve(__dirname, 'public');
+    const filePath = path.resolve(publicRoot, `.${requestedPath}`);
     const contentTypes = {
       '.css': 'text/css',
       '.html': 'text/html',
@@ -253,7 +254,7 @@ http
       '.webp': 'image/webp',
     };
 
-    if (!filePath.startsWith(path.join(__dirname, 'public')) || !contentTypes[path.extname(filePath)]) {
+    if (!filePath.startsWith(`${publicRoot}${path.sep}`) || !contentTypes[path.extname(filePath)]) {
       res.writeHead(404, { 'Content-Type': 'text/plain' });
       res.end('Not found.\n');
       return;
@@ -399,37 +400,42 @@ async function catchUpMissedPosts(configs) {
 async function announceManualInactiveRole(member, config) {
   if (!config?.announcement_channel_id || !config.inactive_role_id) return;
 
-  const auditLogs = await member.guild.fetchAuditLogs({
-    type: AuditLogEvent.MemberRoleUpdate,
-    limit: 10,
-  }).catch(() => null);
-  if (!auditLogs) return;
-
-  const roleUpdate = auditLogs.entries.find(entry => {
-    if (entry.target?.id !== member.id || entry.executor?.bot) return false;
-    if (Date.now() - entry.createdTimestamp > 10000) return false;
-    return entry.changes?.some(change =>
-      change.key === '$add' && change.new?.some(role => role.id === config.inactive_role_id)
-    );
-  });
+  // Discord can emit GuildMemberUpdate before the corresponding audit-log
+  // entry is available, so retry briefly before deciding this was automated.
+  let roleUpdate;
+  for (let attempt = 0; attempt < 3 && !roleUpdate; attempt += 1) {
+    const auditLogs = await member.guild.fetchAuditLogs({
+      type: AuditLogEvent.MemberRoleUpdate,
+      limit: 10,
+    }).catch(() => null);
+    roleUpdate = auditLogs?.entries.find(entry => {
+      if (entry.target?.id !== member.id || entry.executor?.bot) return false;
+      if (Date.now() - entry.createdTimestamp > 15000) return false;
+      return entry.changes?.some(change =>
+        change.key === '$add' && change.new?.some(role => role.id === config.inactive_role_id)
+      );
+    });
+    if (!roleUpdate && attempt < 2) {
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+  }
   if (!roleUpdate) return;
 
   const channel = await client.channels.fetch(config.announcement_channel_id).catch(() => null);
   if (!channel?.isTextBased()) return;
 
-  const ansiNotice = [
-    '```ansi',
-    '\u001b[1;31m⚠️ THE FOOL — ON HOLD NOTICE ⚠️\u001b[0m',
-    '',
-    `${member} has failed to follow THE FOOL RULES and has been moved to the ON HOLD status.`,
-    '',
-    'Please review and follow the rules before returning to regular activities.',
-    '',
-    '📜 <#1516306080743952485>',
-    '```',
-  ].join('\n');
+  const notice = new EmbedBuilder()
+    .setColor(0xed4245)
+    .setTitle('⚠️ ON HOLD NOTICE')
+    .setDescription(`${member} failed to follow the server rules and has been temporarily moved to **ON HOLD**.`)
+    .addFields({
+      name: 'Status',
+      value: 'This is a temporary hold. Please review the rules before returning to regular activities.',
+    })
+    .setFooter({ text: 'Inactive role assigned manually' })
+    .setTimestamp();
 
-  await channel.send(ansiNotice).catch(err =>
+  await channel.send({ embeds: [notice] }).catch(err =>
     console.error(`[announcement] Failed to notify manual inactive role for ${member.id}:`, err.message)
   );
 }
@@ -460,6 +466,27 @@ client.on(Events.InteractionCreate, async interaction => {
       const activeRole = interaction.options.getRole('active-role');
       const inactiveRole = interaction.options.getRole('inactive-role');
       const exemptionRoleIds = parseExemptionRoleIds(interaction.options.getString('exemption-roles'));
+
+      if (!channel.isTextBased() || channel.isThread()) {
+        return interaction.reply({ content: 'Choose a regular text channel for attendance.', ephemeral: true });
+      }
+      if (announcementChannel && (!announcementChannel.isTextBased() || announcementChannel.isThread())) {
+        return interaction.reply({ content: 'Choose a regular text channel for announcements.', ephemeral: true });
+      }
+
+      const botMember = interaction.guild?.members?.me || await interaction.guild?.members.fetchMe().catch(() => null);
+      const requiredPermissions = [
+        PermissionFlagsBits.ViewChannel,
+        PermissionFlagsBits.SendMessages,
+        PermissionFlagsBits.EmbedLinks,
+        PermissionFlagsBits.AddReactions,
+        PermissionFlagsBits.ReadMessageHistory,
+      ];
+      const missingAttendancePermission = botMember && requiredPermissions.some(permission => !channel.permissionsFor(botMember)?.has(permission));
+      const missingAnnouncementPermission = botMember && announcementChannel && requiredPermissions.slice(0, 3).some(permission => !announcementChannel.permissionsFor(botMember)?.has(permission));
+      if (missingAttendancePermission || missingAnnouncementPermission) {
+        return interaction.reply({ content: 'I need View Channel, Send Messages, Embed Links, Add Reactions, and Read Message History in the selected attendance channel.', ephemeral: true });
+      }
 
       if (exemptionRoleIds.some(roleId => !/^\d{17,20}$/.test(roleId))) {
         return interaction.reply({ content: 'Use valid role IDs or role mentions, separated by commas or spaces.', ephemeral: true });
@@ -572,7 +599,8 @@ client.on(Events.InteractionCreate, async interaction => {
       if (!row || row.current_streak === 0) {
         return interaction.reply({ content: "You don't have an active streak yet — react ✅ on today's attendance post!", ephemeral: true });
       }
-      const currentMonth = monthStr(todayStr('UTC'));
+      const config = db.getConfig(interaction.guildId);
+      const currentMonth = monthStr(todayStr(config?.timezone || 'UTC'));
       const shieldsLeft = db.shieldsRemaining(row, currentMonth);
 
       if (row.shielded_date) {

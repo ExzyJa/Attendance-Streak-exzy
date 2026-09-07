@@ -45,6 +45,7 @@ Follow these steps to invite the bot into your server:
    - Embed Links
    - Add Reactions
    - Read Message History
+   - View Audit Log, so the bot can distinguish manual role assignments from its own automatic changes
    - Manage Roles, only if role automation will be enabled
    - Mention Everyone, only if you want the daily `@everyone` mention
 9. Scroll to the bottom of the page and click **Copy** beside the generated URL.
@@ -131,7 +132,7 @@ exemption-roles: @Exempt, @Staff
 ```
 
 The `inactive-role` is the role used when the member is placed on hold. The bot also saves each member's latest active access roles when they check in and restores them later when they are forgiven. The `active-role` option remains optional as a fallback if you want to re-add a shared role as well. The exemption roles are optional; enter one or more role mentions or IDs separated by commas or spaces.
-The `announcement-channel` is optional. When set, the bot mentions members after successfully assigning the inactive role because they missed attendance.
+The `announcement-channel` is optional. When set, the bot posts a red boxed ON HOLD announcement when a moderator manually adds the configured inactive role to a member. It also mentions members after the bot assigns the inactive role because they missed attendance. Give the bot View Channel, Send Messages, and Embed Links permission in this channel.
 
 ## How automatic roles work
 
@@ -141,6 +142,7 @@ The `announcement-channel` is optional. When set, the bot mentions members after
 4. If the member checks in again, the bot removes the inactive role and restores the saved active access roles.
 5. Members who have any configured exemption role are never changed by the bot.
 6. If an announcement channel is configured, the bot announces members placed on hold after missing attendance.
+7. If a moderator manually adds the configured inactive role, the bot posts a red ON HOLD notice in the announcement channel. Automatic role changes made by the bot do not create this manual-action notice.
 
 The bot can only change roles below its highest role and only when it has the Manage Roles permission.
 
