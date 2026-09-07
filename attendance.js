@@ -265,7 +265,21 @@ async function postAttendance(client, guildConfig) {
           const announcementChannel = await client.channels.fetch(guildConfig.announcement_channel_id).catch(() => null);
           if (announcementChannel) {
             const inactiveRoleMention = guildConfig.inactive_role_id ? ` and given <@&${guildConfig.inactive_role_id}>` : '';
-            await announcementChannel.send(`<@${r.userId}> has been placed on hold${inactiveRoleMention} because they did not participate in attendance.`).catch(err =>
+            const notice = new EmbedBuilder()
+              .setColor(0xed4245)
+              .setTitle('⚠️ ON HOLD NOTICE')
+              .setDescription([
+                `<@${r.userId}>`,
+                '',
+                '```ansi',
+                '\u001b[1;31mFAILED TO FOLLOW ATTENDANCE RULES\u001b[0m',
+                '',
+                `Temporarily moved to ON HOLD${inactiveRoleMention} because attendance was missed.`,
+                '```',
+              ].join('\n'))
+              .setFooter({ text: 'Automatic inactive status' })
+              .setTimestamp();
+            await announcementChannel.send({ embeds: [notice] }).catch(err =>
               console.error(`[announcement] Failed to notify ${r.userId}:`, err.message)
             );
           } else {
