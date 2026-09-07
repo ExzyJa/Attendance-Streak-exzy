@@ -562,8 +562,11 @@ client.on(Events.InteractionCreate, async interaction => {
       const embed = new EmbedBuilder()
         .setColor(0x5865f2)
         .setTitle(`⚠️ ${title}`)
-        .setDescription(`**${subject}**\n\n${requiredNotice}`)
-        .addFields({ name: 'Details', value: message || 'No details provided.' })
+        .setDescription(`**${subject}**`)
+        .addFields(
+          { name: 'Details', value: message || 'No details provided.' },
+          { name: '⚠️ Mandatory reading', value: requiredNotice },
+        )
         .setFooter({ text: 'Please react with ✅ to confirm you have read this announcement.' });
 
       const sentMessage = await channel.send({
