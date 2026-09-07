@@ -560,13 +560,9 @@ client.on(Events.InteractionCreate, async interaction => {
       const requiredNotice = '⚠️ Reacting to this announcement is mandatory. Officers will know who has already read it.';
 
       const embed = new EmbedBuilder()
-        .setColor(0x5865f2)
+        .setColor(0xed4245)
         .setTitle(`⚠️ ${title}`)
-        .setDescription(`**${subject}**`)
-        .addFields(
-          { name: 'Details', value: message || 'No details provided.' },
-          { name: '⚠️ Mandatory reading', value: requiredNotice },
-        )
+        .setDescription(`**${subject}**\n\n${message || 'No details provided.'}\n\n${requiredNotice}`)
         .setFooter({ text: 'Please react with ✅ to confirm you have read this announcement.' });
 
       const sentMessage = await channel.send({
