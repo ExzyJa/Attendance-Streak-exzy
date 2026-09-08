@@ -638,6 +638,26 @@ client.on(Events.InteractionCreate, async interaction => {
         return interaction.reply({ content, ephemeral: true });
       }
 
+      const announcementChannel = config.announcement_channel_id
+        ? await client.channels.fetch(config.announcement_channel_id).catch(() => null)
+        : null;
+
+      if (announcementChannel?.isTextBased()) {
+        const notice = new EmbedBuilder()
+          .setColor(0xf1c40f)
+          .setTitle('⚠️ Second Chance Granted')
+          .setDescription([
+            `${member} has been given a **second chance**. Please make sure to **follow THE FOOL rules** and maintain proper **activity** this time.`,
+            '',
+            'This is your chance to prove that you can follow the rules and stay active. **Don’t waste it.**',
+          ].join('\n'))
+          .setTimestamp();
+
+        await announcementChannel.send({ embeds: [notice] }).catch(err =>
+          console.error(`[announcement] Failed to notify forgiven member ${member.id}:`, err.message)
+        );
+      }
+
       const content = forgiveResult.restoredRoles
         ? `Restored ${member} to their roles from before inactive status.`
         : `Removed ${member}'s inactive role. No saved roles were found for this member.`;
