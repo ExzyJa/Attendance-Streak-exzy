@@ -630,11 +630,19 @@ client.on(Events.InteractionCreate, async interaction => {
         return interaction.reply({ content: 'That member is not in this server.', ephemeral: true });
       }
 
-      const restored = await forgiveInactiveRole(member, config);
-      return interaction.reply({
-        content: restored ? `Restored ${member} to their roles from before inactive status.` : 'No saved roles were found, or this member is exempt.',
-        ephemeral: true,
-      });
+      const forgiveResult = await forgiveInactiveRole(member, config);
+      if (!forgiveResult.ok) {
+        const content = forgiveResult.reason === 'exempt'
+          ? `That member is exempt from automatic role changes.`
+          : 'No saved roles were found, or this member is exempt.';
+        return interaction.reply({ content, ephemeral: true });
+      }
+
+      const content = forgiveResult.restoredRoles
+        ? `Restored ${member} to their roles from before inactive status.`
+        : `Removed ${member}'s inactive role. No saved roles were found for this member.`;
+
+      return interaction.reply({ content, ephemeral: true });
     }
   } catch (err) {
     console.error('[interaction] error:', err);

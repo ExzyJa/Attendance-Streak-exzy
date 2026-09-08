@@ -208,29 +208,37 @@ async function updateAttendanceRoles(member, config, inactive) {
 }
 
 async function forgiveInactiveRole(member, config) {
-  if (!member || config.role_automation_enabled !== 1 || !config.inactive_role_id) return false;
-  if (hasExemptionRole(member, config.exemption_role_id)) return false;
+  if (!member || !config?.inactive_role_id) {
+    return { ok: false, reason: 'missing-config' };
+  }
+  if (hasExemptionRole(member, config.exemption_role_id)) {
+    return { ok: false, reason: 'exempt' };
+  }
 
   const roleIds = db.getRoleSnapshot(member.guild.id, member.id);
-  if (!roleIds) return false;
 
   try {
     if (config.inactive_role_id && member.roles.cache.has(config.inactive_role_id)) {
       await member.roles.remove(config.inactive_role_id);
     }
-    for (const roleId of roleIds) {
-      if (roleId !== config.inactive_role_id && !member.roles.cache.has(roleId)) {
-        await member.roles.add(roleId);
+
+    if (Array.isArray(roleIds)) {
+      for (const roleId of roleIds) {
+        if (roleId !== config.inactive_role_id && !member.roles.cache.has(roleId)) {
+          await member.roles.add(roleId);
+        }
       }
     }
+
     if (config.active_role_id && !member.roles.cache.has(config.active_role_id)) {
       await member.roles.add(config.active_role_id);
     }
+
     db.removeRoleSnapshot(member.guild.id, member.id);
-    return true;
+    return { ok: true, restoredRoles: Array.isArray(roleIds) && roleIds.length > 0 };
   } catch (err) {
     console.error(`[roles] Failed to forgive ${member.user.tag}:`, err.message);
-    return false;
+    return { ok: false, reason: 'error' };
   }
 }
 
@@ -264,7 +272,7 @@ async function postAttendance(client, guildConfig) {
         } else if (r.previousStreak > 0 && guildConfig.announcement_channel_id) {
           const announcementChannel = await client.channels.fetch(guildConfig.announcement_channel_id).catch(() => null);
           if (announcementChannel) {
-            const inactiveRoleMention = guildConfig.inactive_role_id ? ` and given <@&${guildConfig.inactive_role_id}>` : '';
+            const inactiveRoleText = guildConfig.inactive_role_id ? ` and assigned <@&${guildConfig.inactive_role_id}>` : '';
             const notice = new EmbedBuilder()
               .setColor(0xed4245)
               .setTitle('⚠️ ON HOLD NOTICE')
@@ -274,12 +282,19 @@ async function postAttendance(client, guildConfig) {
                 '```ansi',
                 '\u001b[1;31mFAILED TO FOLLOW ATTENDANCE RULES\u001b[0m',
                 '',
-                `Temporarily moved to ON HOLD${inactiveRoleMention} because attendance was missed.`,
+                `Temporarily moved to ON HOLD${inactiveRoleText} because attendance was missed.`,
                 '```',
               ].join('\n'))
               .setFooter({ text: 'Automatic inactive status' })
               .setTimestamp();
-            await announcementChannel.send({ embeds: [notice] }).catch(err =>
+            const payload = guildConfig.inactive_role_id
+              ? {
+                  content: `<@&${guildConfig.inactive_role_id}>`,
+                  embeds: [notice],
+                  allowedMentions: { roles: [guildConfig.inactive_role_id] },
+                }
+              : { embeds: [notice] };
+            await announcementChannel.send(payload).catch(err =>
               console.error(`[announcement] Failed to notify ${r.userId}:`, err.message)
             );
           } else {
