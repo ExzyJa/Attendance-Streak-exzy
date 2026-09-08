@@ -664,6 +664,57 @@ client.on(Events.InteractionCreate, async interaction => {
 
       return interaction.reply({ content, ephemeral: true });
     }
+
+    if (interaction.commandName === 'the-judge') {
+      if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)) {
+        return interaction.reply({ content: 'You need the Manage Server permission to do this.', ephemeral: true });
+      }
+
+      const config = db.getConfig(interaction.guildId);
+      if (!config?.inactive_role_id) {
+        return interaction.reply({ content: 'Inactive role automation is not configured.', ephemeral: true });
+      }
+
+      const user = interaction.options.getUser('user', true);
+      const member = await interaction.guild.members.fetch(user.id).catch(() => null);
+      if (!member) {
+        return interaction.reply({ content: 'That member is not in this server.', ephemeral: true });
+      }
+
+      if (member.roles.cache.has(config.inactive_role_id)) {
+        return interaction.reply({ content: `${member} is already on inactive hold.`, ephemeral: true });
+      }
+
+      try {
+        await member.roles.add(config.inactive_role_id);
+      } catch (err) {
+        console.error(`[roles] Failed to apply inactive role to ${member.user.tag}:`, err.message);
+        return interaction.reply({ content: `I couldn’t add the inactive role to ${member}.`, ephemeral: true });
+      }
+
+      const channel = config.announcement_channel_id
+        ? await client.channels.fetch(config.announcement_channel_id).catch(() => null)
+        : null;
+
+      if (channel?.isTextBased()) {
+        const notice = new EmbedBuilder()
+          .setColor(0xed4245)
+          .setTitle('⚠️ ON HOLD NOTICE')
+          .setDescription(`${member} has been temporarily moved to **ON HOLD** and assigned the inactive role.`)
+          .addFields({
+            name: 'Status',
+            value: 'This is a temporary hold. Please review the rules before returning to regular activities.',
+          })
+          .setFooter({ text: 'Inactive role assigned by THE JUDGE' })
+          .setTimestamp();
+
+        await channel.send({ embeds: [notice] }).catch(err =>
+          console.error(`[announcement] Failed to notify judged member ${member.id}:`, err.message)
+        );
+      }
+
+      return interaction.reply({ content: `Applied the inactive role to ${member} and announced the hold.`, ephemeral: true });
+    }
   } catch (err) {
     console.error('[interaction] error:', err);
     if (interaction.deferred || interaction.replied) {

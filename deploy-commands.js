@@ -61,6 +61,13 @@ const commands = [
     .addUserOption(opt =>
       opt.setName('user').setDescription('Member whose previous roles should be restored').setRequired(true))
     .toJSON(),
+
+  new SlashCommandBuilder()
+    .setName('the-judge')
+    .setDescription('Apply the inactive role to a member and announce the hold')
+    .addUserOption(opt =>
+      opt.setName('user').setDescription('Member to place on hold').setRequired(true))
+    .toJSON(),
 ];
 
 const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
