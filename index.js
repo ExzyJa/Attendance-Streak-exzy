@@ -567,20 +567,20 @@ client.on(Events.InteractionCreate, async interaction => {
       const title = normalizeAnnouncementText(interaction.options.getString('title', true), 256) || 'Announcement';
       const subject = normalizeAnnouncementText(interaction.options.getString('subject', true), 1024) || 'Announcement';
       const message = normalizeAnnouncementText(interaction.options.getString('message', true), 2000) || 'No details provided.';
-      const extraMessage = normalizeAnnouncementText(interaction.options.getString('extra-message'), 2000);
+      const extraMessages = Array.from({ length: 10 }, (_, index) => `extra-message-${index + 1}`)
+        .map(optionName => normalizeAnnouncementText(interaction.options.getString(optionName), 2000))
+        .filter(Boolean)
+        .map(extraMessage => extraMessage
+          .split(/\n+/)
+          .map(part => part.trim())
+          .filter(Boolean)
+          .join('\n\n'));
       const formattedMessage = message
         .split(/\n+/)
         .map(part => part.trim())
         .filter(Boolean)
         .join('\n\n');
-      const formattedExtraMessage = extraMessage
-        ? extraMessage
-            .split(/\n+/)
-            .map(part => part.trim())
-            .filter(Boolean)
-            .join('\n\n')
-        : '';
-      const detailsValue = [formattedMessage, formattedExtraMessage].filter(Boolean).join('\n\n');
+      const detailsValue = [formattedMessage, ...extraMessages].filter(Boolean).join('\n\n');
       const requiredNotice = '⚠️ Reacting to this announcement is mandatory. Officers will know who has already read it.';
 
       const embed = new EmbedBuilder()

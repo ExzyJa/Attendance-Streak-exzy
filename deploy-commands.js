@@ -39,7 +39,25 @@ const commands = [
     .addStringOption(opt =>
       opt.setName('message').setDescription('Announcement details').setRequired(true))
     .addStringOption(opt =>
-      opt.setName('extra-message').setDescription('Optional extra paragraph or bullet list to include in the same announcement box').setRequired(false))
+      opt.setName('extra-message-1').setDescription('Optional extra paragraph or bullet list to include in the same announcement box').setRequired(false))
+    .addStringOption(opt =>
+      opt.setName('extra-message-2').setDescription('Optional second extra paragraph or bullet list').setRequired(false))
+    .addStringOption(opt =>
+      opt.setName('extra-message-3').setDescription('Optional third extra paragraph or bullet list').setRequired(false))
+    .addStringOption(opt =>
+      opt.setName('extra-message-4').setDescription('Optional fourth extra paragraph or bullet list').setRequired(false))
+    .addStringOption(opt =>
+      opt.setName('extra-message-5').setDescription('Optional fifth extra paragraph or bullet list').setRequired(false))
+    .addStringOption(opt =>
+      opt.setName('extra-message-6').setDescription('Optional sixth extra paragraph or bullet list').setRequired(false))
+    .addStringOption(opt =>
+      opt.setName('extra-message-7').setDescription('Optional seventh extra paragraph or bullet list').setRequired(false))
+    .addStringOption(opt =>
+      opt.setName('extra-message-8').setDescription('Optional eighth extra paragraph or bullet list').setRequired(false))
+    .addStringOption(opt =>
+      opt.setName('extra-message-9').setDescription('Optional ninth extra paragraph or bullet list').setRequired(false))
+    .addStringOption(opt =>
+      opt.setName('extra-message-10').setDescription('Optional tenth extra paragraph or bullet list').setRequired(false))
     .toJSON(),
 
   new SlashCommandBuilder()
