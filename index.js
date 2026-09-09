@@ -672,7 +672,21 @@ client.on(Events.InteractionCreate, async interaction => {
 
       const config = db.getConfig(interaction.guildId);
       if (!config?.inactive_role_id) {
-        return interaction.reply({ content: 'Inactive role automation is not configured.', ephemeral: true });
+        return interaction.reply({ content: 'The inactive role is not configured yet. Run `/setup-attendance` and choose an inactive role first.', ephemeral: true });
+      }
+
+      const botMember = interaction.guild?.members?.me || await interaction.guild?.members.fetchMe().catch(() => null);
+      if (!botMember?.permissions.has(PermissionFlagsBits.ManageRoles)) {
+        return interaction.reply({ content: 'I need the Manage Roles permission in this server to use `/the-judge`.', ephemeral: true });
+      }
+
+      const inactiveRole = interaction.guild.roles.cache.get(config.inactive_role_id) || await interaction.guild.roles.fetch(config.inactive_role_id).catch(() => null);
+      if (!inactiveRole) {
+        return interaction.reply({ content: 'The configured inactive role could not be found in this server. Re-run `/setup-attendance` and choose it again.', ephemeral: true });
+      }
+
+      if (inactiveRole.position >= botMember.roles.highest.position) {
+        return interaction.reply({ content: `I can’t assign <@&${inactiveRole.id}> because it is at or above my highest role. Move my top role above the inactive role in Server Settings → Roles.`, ephemeral: true });
       }
 
       const user = interaction.options.getUser('user', true);
@@ -689,7 +703,7 @@ client.on(Events.InteractionCreate, async interaction => {
         await member.roles.add(config.inactive_role_id);
       } catch (err) {
         console.error(`[roles] Failed to apply inactive role to ${member.user.tag}:`, err.message);
-        return interaction.reply({ content: `I couldn’t add the inactive role to ${member}.`, ephemeral: true });
+        return interaction.reply({ content: `I couldn’t add the inactive role to ${member}. Check that the role is below my highest role and that I still have Manage Roles permission.`, ephemeral: true });
       }
 
       const channel = config.announcement_channel_id
