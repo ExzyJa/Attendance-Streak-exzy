@@ -569,12 +569,17 @@ client.on(Events.InteractionCreate, async interaction => {
       const message = normalizeAnnouncementText(interaction.options.getString('message', true), 2000) || 'No details provided.';
       const requiredNotice = '**⚠️ Reacting to this announcement is mandatory. Officers will know who has already read it.**';
 
+      const mirroredMessage = message
+        .split('\n')
+        .map(line => (line ? `> ${line}` : '>'))
+        .join('\n');
+
       const announcementContent = [
-        `**${subject}**`,
-        '',
-        message,
-        '',
-        requiredNotice,
+        `> **${subject}**`,
+        '>',
+        mirroredMessage,
+        '>',
+        `> ${requiredNotice}`,
       ].join('\n');
 
       const embed = new EmbedBuilder()
