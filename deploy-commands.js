@@ -38,6 +38,8 @@ const commands = [
       opt.setName('subject').setDescription('Announcement subject or headline').setRequired(true))
     .addStringOption(opt =>
       opt.setName('message').setDescription('Announcement details').setRequired(true))
+    .addStringOption(opt =>
+      opt.setName('extra-message').setDescription('Optional extra paragraph or bullet list to include in the same announcement box').setRequired(false))
     .toJSON(),
 
   new SlashCommandBuilder()
