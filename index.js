@@ -60,6 +60,18 @@ function readRequestBody(req) {
   });
 }
 
+function normalizeAnnouncementText(value, maxLength = Infinity) {
+  const normalized = String(value ?? '')
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/[ \t]{2,}/g, ' ')
+    .trim();
+
+  return normalized.slice(0, maxLength);
+}
+
 async function discordRequest(endpoint, options = {}) {
   const response = await fetch(`https://discord.com/api/v10${endpoint}`, options);
   const responseText = await response.text();
@@ -554,15 +566,21 @@ client.on(Events.InteractionCreate, async interaction => {
         });
       }
 
-      const title = interaction.options.getString('title', true).slice(0, 256);
-      const subject = interaction.options.getString('subject', true).slice(0, 1024);
-      const message = interaction.options.getString('message', true).slice(0, 2000);
-      const requiredNotice = '⚠️ Reacting to this announcement is mandatory. Officers will know who has already read it.';
+      const title = normalizeAnnouncementText(interaction.options.getString('title', true), 256) || 'Announcement';
+      const subject = normalizeAnnouncementText(interaction.options.getString('subject', true), 1024) || 'Announcement';
+      const message = normalizeAnnouncementText(interaction.options.getString('message', true), 2000) || 'No details provided.';
+      const requiredNotice = '**⚠️ Reacting to this announcement is mandatory. Officers will know who has already read it.**';
 
       const embed = new EmbedBuilder()
         .setColor(0xed4245)
         .setTitle(`⚠️ ${title}`)
-        .setDescription(`**${subject}**\n\n${message || 'No details provided.'}\n\n${requiredNotice}`)
+        .setDescription([
+          `**${subject}**`,
+          '',
+          message,
+          '',
+          requiredNotice,
+        ].join('\n'))
         .setFooter({ text: 'Please react with ✅ to confirm you have read this announcement.' });
 
       const sentMessage = await channel.send({
