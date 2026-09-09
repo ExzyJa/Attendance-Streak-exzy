@@ -64,9 +64,7 @@ function normalizeAnnouncementText(value, maxLength = Infinity) {
   const normalized = String(value ?? '')
     .replace(/\r\n/g, '\n')
     .replace(/\r/g, '\n')
-    .replace(/[ \t]+\n/g, '\n')
-    .replace(/\n{3,}/g, '\n\n')
-    .replace(/[ \t]{2,}/g, ' ')
+    .replace(/\u00A0/g, ' ')
     .trim();
 
   return normalized.slice(0, maxLength);
