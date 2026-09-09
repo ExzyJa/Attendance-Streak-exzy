@@ -273,7 +273,7 @@ http
   .listen(PORT, () => console.log(`[http] Health check server listening on port ${PORT}`));
 
 const db = require('./db');
-const { postAttendance, buildLeaderboardEmbed, buildDailyEmbed, updateAttendanceRoles, forgiveInactiveRole, CHECK_EMOJI } = require('./attendance');
+const { postAttendance, buildLeaderboardEmbed, buildDailyEmbed, saveCurrentMemberRoles, updateAttendanceRoles, forgiveInactiveRole, CHECK_EMOJI } = require('./attendance');
 const { todayStr, yesterdayStr, monthStr, minutesSinceMidnight } = require('./utils');
 
 const client = new Client({
@@ -700,7 +700,12 @@ client.on(Events.InteractionCreate, async interaction => {
       }
 
       try {
-        await member.roles.add(config.inactive_role_id);
+        if (config.role_automation_enabled === 1) {
+          await saveCurrentMemberRoles(member, config);
+          await updateAttendanceRoles(member, config, true);
+        } else {
+          await member.roles.add(config.inactive_role_id);
+        }
       } catch (err) {
         console.error(`[roles] Failed to apply inactive role to ${member.user.tag}:`, err.message);
         return interaction.reply({ content: `I couldn’t add the inactive role to ${member}. Check that the role is below my highest role and that I still have Manage Roles permission.`, ephemeral: true });
@@ -769,20 +774,21 @@ client.on(Events.MessageReactionAdd, async (reaction, user) => {
     const yesterday = yesterdayStr(config.timezone);
 
     const isNewCheckin = db.recordCheckin(guildId, user.id, today);
-    if (!isNewCheckin) return; // already checked in today — avoid double-counting
 
-    const result = db.recordAttendance(guildId, user.id, today, yesterday);
-    const member = await reaction.message.guild.members.fetch(user.id).catch(() => null);
-    if (member) {
-      await saveCurrentMemberRoles(member, config);
-      if (result.status === 'updated' && result.current_streak === 0) {
-        await updateAttendanceRoles(member, config, true);
-      } else {
-        await updateAttendanceRoles(member, config, false);
+    if (isNewCheckin) {
+      const result = db.recordAttendance(guildId, user.id, today, yesterday);
+      const member = await reaction.message.guild.members.fetch(user.id).catch(() => null);
+      if (member) {
+        await saveCurrentMemberRoles(member, config);
+        if (result.status === 'updated' && result.current_streak === 0) {
+          await updateAttendanceRoles(member, config, true);
+        } else {
+          await updateAttendanceRoles(member, config, false);
+        }
       }
-    }
-    if (result.status === 'updated' || result.status === 'new') {
-      console.log(`[streak] ${user.tag} in guild ${guildId} -> ${result.current_streak} day streak`);
+      if (result.status === 'updated' || result.status === 'new') {
+        console.log(`[streak] ${user.tag} in guild ${guildId} -> ${result.current_streak} day streak`);
+      }
     }
 
     await refreshAttendanceEmbed(reaction.message, config, guildId, today);

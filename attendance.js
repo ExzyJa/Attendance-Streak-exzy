@@ -355,4 +355,4 @@ async function buildLeaderboardEmbed(guild, limit = 25) {
   return embed;
 }
 
-module.exports = { postAttendance, buildLeaderboardEmbed, buildDailyEmbed, updateAttendanceRoles, forgiveInactiveRole, CHECK_EMOJI, SHIELD_EMOJI };
+module.exports = { postAttendance, buildLeaderboardEmbed, buildDailyEmbed, saveCurrentMemberRoles, updateAttendanceRoles, forgiveInactiveRole, CHECK_EMOJI, SHIELD_EMOJI };
