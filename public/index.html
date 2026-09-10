@@ -63,7 +63,8 @@
         <article class="feature-item"><span class="feature-number">01</span><div><h3>Check in daily</h3><p>At your chosen time, the bot posts a fresh attendance message. React with <strong>✅</strong> to keep your place.</p></div></article>
         <article class="feature-item"><span class="feature-number">02</span><div><h3>Build your run</h3><p>Every check-in extends a personal streak. Shields can cover a single missed day without breaking the momentum.</p></div></article>
         <article class="feature-item"><span class="feature-number">03</span><div><h3>Let the roles speak</h3><p>When someone misses too long, the bot moves them to inactive and can announce the change in a channel you choose.</p></div></article>
-        <article class="feature-item"><span class="feature-number">04</span><div><h3>Manual ON HOLD notices</h3><p>When a moderator adds the inactive role manually, the bot posts a red boxed notice in the configured announcement channel.</p></div></article>
+        <article class="feature-item"><span class="feature-number">04</span><div><h3>Restore streaks and reset shields</h3><p>Moderators can use <strong>/restore-streak</strong> and <strong>/forgive-inactive</strong> to bring a member back, reset their shield state, and refresh the live attendance view instantly.</p></div></article>
+        <article class="feature-item"><span class="feature-number">05</span><div><h3>Boxed announcements and birthday greetings</h3><p>Use <strong>/announcement</strong> for read-confirmation posts, and <strong>/birthday</strong> for a boxed celebration message in the configured announcement channel.</p></div></article>
       </div>
     </section>
 
@@ -82,11 +83,14 @@
       <div class="section-intro reveal"><p class="eyebrow">03 / The toolkit</p><h2>Small commands.<br><em>Clear signals.</em></h2><p>Everything your moderators and members need stays close to the conversation.</p></div>
       <div class="command-table reveal reveal-delay">
         <div class="command-row command-header"><span>COMMAND</span><span>WHAT IT DOES</span></div>
-        <div class="command-row"><code>/setup-attendance</code><span>Choose channel, time, roles, and timezone</span></div>
-        <div class="command-row"><code>/streaks</code><span>Show the community leaderboard</span></div>
-        <div class="command-row"><code>/my-streak</code><span>Check your current and best run privately</span></div>
-        <div class="command-row"><code>/forgive-inactive</code><span>Restore a member's saved roles</span></div>
-        <div class="command-row"><code>Manual role update</code><span>Announce a temporary ON HOLD status when inactive is assigned</span></div>
+        <div class="command-row"><code>/setup-attendance</code><span>Choose channel, time, roles, timezone, and the announcement channel</span></div>
+        <div class="command-row"><code>/announcement</code><span>Post a boxed read-confirmation announcement with a required ✅ reaction</span></div>
+        <div class="command-row"><code>/streaks</code><span>Show the community leaderboard with live streak and shield details</span></div>
+        <div class="command-row"><code>/my-streak</code><span>Check your current streak and shields privately</span></div>
+        <div class="command-row"><code>/restore-streak</code><span>Restore a member's streak, wipe shield state, and post a boxed streak-restored notice</span></div>
+        <div class="command-row"><code>/forgive-inactive</code><span>Remove the inactive role, restore saved roles, and re-show the active attendance state</span></div>
+        <div class="command-row"><code>/birthday</code><span>Post a boxed birthday greeting to the configured announcement channel</span></div>
+        <div class="command-row"><code>Manual role update</code><span>Announce a temporary ON HOLD status when inactive is assigned by hand</span></div>
       </div>
     </section>
 
@@ -104,7 +108,7 @@ exemption-roles: @Staff, @Admin</code></pre><p class="code-note">The bot saves e
     </section>
   </main>
 
-  <footer class="site-footer"><span>Attendance Streak <strong class="site-version">v3.0.2</strong></span><span>Created by <strong>Exzy-Ja</strong></span><a href="#top">Back to top ↑</a></footer>
+  <footer class="site-footer"><span>Attendance Streak <strong class="site-version">v3.0.31</strong></span><span>Created by <strong>Exzy-Ja</strong></span><a href="#top">Back to top ↑</a></footer>
   <script src="/app.js"></script>
 </body>
 </html>
