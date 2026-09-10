@@ -371,6 +371,21 @@ async function refreshAttendanceEmbed(message, config, guildId, dateStr) {
   }
 }
 
+async function refreshActiveAttendanceEmbed(guildId, config) {
+  const active = db.getActiveMessage(guildId);
+  if (!active?.channel_id || !active.message_id) return;
+
+  const channel = await client.channels.fetch(active.channel_id).catch(() => null);
+  if (!channel?.messages?.fetch) return;
+
+  const message = await channel.messages.fetch(active.message_id).catch(() => null);
+  if (!message) return;
+
+  const currentConfig = config || db.getConfig(guildId);
+  const today = currentConfig ? todayStr(currentConfig.timezone) : todayStr('UTC');
+  await refreshAttendanceEmbed(message, currentConfig, guildId, today);
+}
+
 // If the bot was offline at the exact scheduled minute (redeploy, restart,
 // brief outage, etc.), node-cron's tick is simply missed and nothing posts
 // until the *next* day. This catches that up on boot: for each guild, if
@@ -661,17 +676,65 @@ client.on(Events.InteractionCreate, async interaction => {
         : null;
 
       if (announcementChannel?.isTextBased()) {
-        await announcementChannel.send({
-          content: `🔥 **STREAK RESTORED!**\n\n${member}’s streak has been **successfully restored**!\n\nKeep the streak alive and don’t let the fire go out! 🔥`,
-        }).catch(err =>
+        const notice = new EmbedBuilder()
+          .setColor(0xf1c40f)
+          .setTitle('🔥 STREAK RESTORED!')
+          .setDescription([
+            `${member}’s streak has been **successfully restored**!`,
+            '',
+            'Keep the streak alive and don’t let the fire go out! 🔥',
+          ].join('\n'))
+          .setTimestamp();
+
+        await announcementChannel.send({ embeds: [notice] }).catch(err =>
           console.error(`[announcement] Failed to notify restored member ${member.id}:`, err.message)
         );
       }
+
+      await refreshActiveAttendanceEmbed(interaction.guildId, config);
 
       return interaction.reply({
         content: `✅ Restored ${member}'s streak to **${result.current_streak}** and refreshed their shields for this month.`,
         ephemeral: true,
       });
+    }
+
+    if (interaction.commandName === 'birthday') {
+      if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)) {
+        return interaction.reply({ content: 'You need the Manage Server permission to do this.', ephemeral: true });
+      }
+
+      const config = db.getConfig(interaction.guildId);
+      if (!config?.announcement_channel_id) {
+        return interaction.reply({ content: 'Set an announcement channel first using `/setup-attendance`.', ephemeral: true });
+      }
+
+      const user = interaction.options.getUser('user', true);
+      const member = await interaction.guild.members.fetch(user.id).catch(() => null);
+      if (!member) {
+        return interaction.reply({ content: 'That member is not in this server.', ephemeral: true });
+      }
+
+      const announcementChannel = await client.channels.fetch(config.announcement_channel_id).catch(() => null);
+      if (!announcementChannel?.isTextBased()) {
+        return interaction.reply({ content: 'The configured announcement channel could not be found.', ephemeral: true });
+      }
+
+      const notice = new EmbedBuilder()
+        .setColor(0xf1c40f)
+        .setTitle('🎉 Birthday Greetings!')
+        .setDescription([
+          `🎂 ${member} has a **Happy Birthday**!`,
+          '',
+          'Wishing you a fantastic day filled with joy, laughter, and plenty of cake! 🎉',
+        ].join('\n'))
+        .setTimestamp();
+
+      await announcementChannel.send({ embeds: [notice] }).catch(err =>
+        console.error(`[announcement] Failed to send birthday greeting for ${member.id}:`, err.message)
+      );
+
+      return interaction.reply({ content: `✅ Birthday greetings announced for ${member}.`, ephemeral: true });
     }
 
     if (interaction.commandName === 'forgive-inactive') {
@@ -698,6 +761,12 @@ client.on(Events.InteractionCreate, async interaction => {
         return interaction.reply({ content, ephemeral: true });
       }
 
+      const existing = db.getStreak(interaction.guildId, user.id);
+      if (existing) {
+        const restoredStreak = Math.max(existing.current_streak, existing.longest_streak);
+        db.restoreStreak(interaction.guildId, user.id, restoredStreak);
+      }
+
       const announcementChannel = config.announcement_channel_id
         ? await client.channels.fetch(config.announcement_channel_id).catch(() => null)
         : null;
@@ -717,6 +786,8 @@ client.on(Events.InteractionCreate, async interaction => {
           console.error(`[announcement] Failed to notify forgiven member ${member.id}:`, err.message)
         );
       }
+
+      await refreshActiveAttendanceEmbed(interaction.guildId, config);
 
       const content = forgiveResult.restoredRoles
         ? `Restored ${member} to their roles from before inactive status.`

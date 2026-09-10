@@ -85,6 +85,13 @@ const commands = [
     .toJSON(),
 
   new SlashCommandBuilder()
+    .setName('birthday')
+    .setDescription('Post a birthday greeting in the announcement channel')
+    .addUserOption(opt =>
+      opt.setName('user').setDescription('Member to greet for their birthday').setRequired(true))
+    .toJSON(),
+
+  new SlashCommandBuilder()
     .setName('forgive-inactive')
     .setDescription('Restore a member\'s roles after forgiving their inactive status')
     .addUserOption(opt =>
