@@ -655,6 +655,19 @@ client.on(Events.InteractionCreate, async interaction => {
       }
 
       const result = db.restoreStreak(interaction.guildId, user.id, streak);
+      const config = db.getConfig(interaction.guildId);
+      const announcementChannel = config?.announcement_channel_id
+        ? await client.channels.fetch(config.announcement_channel_id).catch(() => null)
+        : null;
+
+      if (announcementChannel?.isTextBased()) {
+        await announcementChannel.send({
+          content: `🔥 **STREAK RESTORED!**\n\n${member}’s streak has been **successfully restored**!\n\nKeep the streak alive and don’t let the fire go out! 🔥`,
+        }).catch(err =>
+          console.error(`[announcement] Failed to notify restored member ${member.id}:`, err.message)
+        );
+      }
+
       return interaction.reply({
         content: `✅ Restored ${member}'s streak to **${result.current_streak}** and refreshed their shields for this month.`,
         ephemeral: true,
