@@ -76,6 +76,15 @@ const commands = [
     .toJSON(),
 
   new SlashCommandBuilder()
+    .setName('restore-streak')
+    .setDescription('Manually restore a member\'s streak and shields')
+    .addUserOption(opt =>
+      opt.setName('user').setDescription('Member whose streak should be restored').setRequired(true))
+    .addIntegerOption(opt =>
+      opt.setName('streak').setDescription('Streak value to set for the member').setRequired(true).setMinValue(0))
+    .toJSON(),
+
+  new SlashCommandBuilder()
     .setName('forgive-inactive')
     .setDescription('Restore a member\'s roles after forgiving their inactive status')
     .addUserOption(opt =>

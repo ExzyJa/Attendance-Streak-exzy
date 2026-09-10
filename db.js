@@ -1,5 +1,6 @@
 const Database = require('better-sqlite3');
 const path = require('path');
+const { todayStr, dateStrPlusDays } = require('./utils');
 
 // On Railway, set DB_PATH to a file inside your mounted volume (e.g. /data/attendance.sqlite)
 // so streak data survives redeploys/restarts. Falls back to a local file for VPS/dev use.
@@ -194,6 +195,34 @@ function getLeaderboard(guildId, limit = 25) {
   `).all(guildId, limit);
 }
 
+function restoreStreak(guildId, userId, streakValue) {
+  const restoredStreak = Math.max(0, Number(streakValue) || 0);
+  const config = getConfig(guildId);
+  const todayDate = todayStr(config?.timezone || 'UTC');
+  const yesterdayDate = dateStrPlusDays(todayDate, -1);
+  const existing = getStreak(guildId, userId);
+
+  if (existing) {
+    const newLongest = Math.max(existing.longest_streak, restoredStreak);
+    db.prepare(`
+      UPDATE streaks
+      SET current_streak = ?, longest_streak = ?, last_date = ?, shielded_date = NULL,
+          shields_used = 0, shields_month = '', absence_days = 0, last_absence_date = NULL
+      WHERE guild_id = ? AND user_id = ?
+    `).run(restoredStreak, newLongest, yesterdayDate, guildId, userId);
+
+    return { status: 'restored', current_streak: restoredStreak, longest_streak: newLongest };
+  }
+
+  db.prepare(`
+    INSERT INTO streaks (guild_id, user_id, current_streak, longest_streak, last_date,
+      shields_used, shields_month, shielded_date, absence_days, last_absence_date)
+    VALUES (?, ?, ?, ?, ?, 0, '', NULL, 0, NULL)
+  `).run(guildId, userId, restoredStreak, restoredStreak, yesterdayDate);
+
+  return { status: 'restored', current_streak: restoredStreak, longest_streak: restoredStreak };
+}
+
 /**
  * Shields remaining for a user this calendar month (accounts for the lazy
  * monthly reset — shields_used only actually resets in the DB the next time
@@ -311,6 +340,7 @@ module.exports = {
   removeRoleSnapshot,
   getStreak,
   getLeaderboard,
+  restoreStreak,
   shieldsRemaining,
   recordAttendance,
   processAbsences,

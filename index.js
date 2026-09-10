@@ -642,6 +642,25 @@ client.on(Events.InteractionCreate, async interaction => {
       });
     }
 
+    if (interaction.commandName === 'restore-streak') {
+      if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)) {
+        return interaction.reply({ content: 'You need the Manage Server permission to do this.', ephemeral: true });
+      }
+
+      const user = interaction.options.getUser('user', true);
+      const streak = interaction.options.getInteger('streak', true);
+      const member = await interaction.guild.members.fetch(user.id).catch(() => null);
+      if (!member) {
+        return interaction.reply({ content: 'That member is not in this server.', ephemeral: true });
+      }
+
+      const result = db.restoreStreak(interaction.guildId, user.id, streak);
+      return interaction.reply({
+        content: `✅ Restored ${member}'s streak to **${result.current_streak}** and refreshed their shields for this month.`,
+        ephemeral: true,
+      });
+    }
+
     if (interaction.commandName === 'forgive-inactive') {
       if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)) {
         return interaction.reply({ content: 'You need the Manage Server permission to do this.', ephemeral: true });
