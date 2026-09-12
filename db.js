@@ -199,7 +199,6 @@ function restoreStreak(guildId, userId, streakValue) {
   const restoredStreak = Math.max(0, Number(streakValue) || 0);
   const config = getConfig(guildId);
   const todayDate = todayStr(config?.timezone || 'UTC');
-  const yesterdayDate = dateStrPlusDays(todayDate, -1);
   const existing = getStreak(guildId, userId);
 
   if (existing) {
@@ -209,7 +208,7 @@ function restoreStreak(guildId, userId, streakValue) {
       SET current_streak = ?, longest_streak = ?, last_date = ?, shielded_date = NULL,
           shields_used = 0, shields_month = '', absence_days = 0, last_absence_date = NULL
       WHERE guild_id = ? AND user_id = ?
-    `).run(restoredStreak, newLongest, yesterdayDate, guildId, userId);
+    `).run(restoredStreak, newLongest, todayDate, guildId, userId);
 
     return { status: 'restored', current_streak: restoredStreak, longest_streak: newLongest };
   }
@@ -218,7 +217,7 @@ function restoreStreak(guildId, userId, streakValue) {
     INSERT INTO streaks (guild_id, user_id, current_streak, longest_streak, last_date,
       shields_used, shields_month, shielded_date, absence_days, last_absence_date)
     VALUES (?, ?, ?, ?, ?, 0, '', NULL, 0, NULL)
-  `).run(guildId, userId, restoredStreak, restoredStreak, yesterdayDate);
+  `).run(guildId, userId, restoredStreak, restoredStreak, todayDate);
 
   return { status: 'restored', current_streak: restoredStreak, longest_streak: restoredStreak };
 }
