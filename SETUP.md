@@ -79,13 +79,13 @@ DISCORD_TOKEN=your-bot-token
 CLIENT_ID=your-application-client-id
 DISCORD_CLIENT_ID=your-application-client-id
 DISCORD_CLIENT_SECRET=your-oauth2-client-secret
-DISCORD_REDIRECT_URI=https://your-railway-domain.up.railway.app/auth/callback
+DISCORD_REDIRECT_URI=https://your-render-domain.onrender.com/auth/callback
 ```
 
-For Railway or another persistent volume, also set:
+For Render or another persistent volume, also set:
 
 ```env
-DB_PATH=/data/attendance.sqlite
+DB_PATH=/var/data/attendance.sqlite
 ```
 
 Register the slash commands:

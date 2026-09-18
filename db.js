@@ -2,7 +2,7 @@ const Database = require('better-sqlite3');
 const path = require('path');
 const { todayStr, dateStrPlusDays } = require('./utils');
 
-// On Railway, set DB_PATH to a file inside your mounted volume (e.g. /data/attendance.sqlite)
+// On Render, set DB_PATH to a file inside your mounted persistent disk (e.g. /var/data/attendance.sqlite)
 // so streak data survives redeploys/restarts. Falls back to a local file for VPS/dev use.
 const dbPath = process.env.DB_PATH || path.join(__dirname, 'attendance.sqlite');
 const db = new Database(dbPath);

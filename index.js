@@ -15,7 +15,7 @@ const {
 } = require('discord.js');
 const cron = require('node-cron');
 
-// Railway (and most PaaS hosts) expect the service to bind to $PORT and respond
+// Render and most PaaS hosts expect the service to bind to $PORT and respond
 // to HTTP so they can health-check it. The bot itself only needs the Discord
 // Gateway connection, so this is just a minimal "I'm alive" endpoint.
 const PORT = process.env.PORT || 3000;

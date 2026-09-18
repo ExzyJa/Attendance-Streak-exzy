@@ -4,9 +4,9 @@ CLIENT_ID=your-application-client-id-here
 
 
 # Optional. Leave unset for local/VPS use (writes attendance.sqlite next to the code).
-# On Railway, set this to a path inside your mounted volume, e.g. /data/attendance.sqlite,
+# On Render, set this to a path inside your mounted persistent disk, e.g. /var/data/attendance.sqlite,
 # so streak data survives redeploys and restarts.
-# DB_PATH=/data/attendance.sqlite
+# DB_PATH=/var/data/attendance.sqlite
 
 # Optional. Real animated custom emoji (e.g. <a:fire_blue:123456789012345678>)
 # to use for each streak-fire tier instead of the default static 🔥.

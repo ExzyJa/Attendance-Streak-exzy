@@ -95,7 +95,7 @@ The 🔥 next to each name is colored by streak length, using Discord's
 Once `/setup-attendance` has been run, the bot schedules a daily cron job
 per server and posts automatically at that time going forward — you never
 need to type `/post-attendance-now` again. On top of that, every time the
-bot starts up (first boot, or after a Railway redeploy/restart) it checks:
+bot starts up (first boot, or after a Render redeploy/restart) it checks:
 if today's scheduled time has already passed and today's post hasn't gone
 out yet, it posts immediately as a catch-up. This covers the edge case
 where the bot happened to be restarting at the exact scheduled minute and
@@ -150,34 +150,33 @@ pm2 start index.js --name attendance-bot
 pm2 save
 ```
 
-## Deploying on Railway (instead of your own VPS)
+## Deploying on Render (instead of your own VPS)
 
-Railway runs the bot as a persistent process, which is what this bot needs
+Render runs the bot as a persistent process, which is what this bot needs
 (it holds a live connection to Discord, not just occasional HTTP requests).
-The code already includes a tiny built-in HTTP server so Railway's health
+The code already includes a tiny built-in HTTP server so Render's health
 checks pass, and reads `DB_PATH`/`PORT` from the environment automatically.
 
 ### Automatic version updates
 
 Every push to `main` runs the GitHub Actions workflow in
 `.github/workflows/bump-version.yml`, which increments the patch version in
-`package.json` and pushes the version commit back to GitHub. Railway then
+`package.json` and pushes the version commit back to GitHub. Render then
 deploys that commit. The running version appears in the footer of each daily
 Discord check-in embed beside Discord's check-in timestamp, and on the website
 footer.
 
 1. Push this project to a GitHub repo (`git init && git add . && git commit -m "init"`,
    create a repo on GitHub, `git remote add origin <url> && git push -u origin main`).
-2. On https://railway.app: **New Project → Deploy from GitHub repo** → pick the repo.
-   Railway auto-detects it as a Node app via `package.json`.
-3. Open the service → **Variables** → add `DISCORD_TOKEN` and `CLIENT_ID`.
-4. Open the service → **Volumes** → create a volume, mount it at `/data`.
-   Then add a variable `DB_PATH=/data/attendance.sqlite` so streak data
-   survives redeploys instead of getting wiped.
-5. Register slash commands **once**, from your own machine (not on Railway):
+2. On https://dashboard.render.com: **New + → Web Service** → connect the repo.
+   Render auto-detects it as a Node app via `package.json`.
+3. In the service settings, add `DISCORD_TOKEN` and `CLIENT_ID`.
+4. Add a persistent disk at `/var/data` and set `DB_PATH=/var/data/attendance.sqlite`
+   so streak data survives deploys and restarts.
+5. Register slash commands **once**, from your own machine (not on Render):
    set the same `DISCORD_TOKEN`/`CLIENT_ID` in a local `.env` and run
    `npm run deploy-commands`.
-6. Check **Deployments → Logs** for `Logged in as YourBot#1234`.
+6. Check **Logs** for `Logged in as YourBot#1234`.
 7. In Discord, run `/setup-attendance`, then `/post-attendance-now` to test.
 
 Note on Replit: Replit's free tier sleeps when idle, which breaks both the
