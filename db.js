@@ -5,11 +5,33 @@ const { todayStr, dateStrPlusDays } = require('./utils');
 
 // On Render, set DB_PATH to a file inside your mounted persistent disk (e.g. /var/data/attendance.sqlite)
 // so streak data survives redeploys/restarts. Falls back to a local file for VPS/dev use.
-const dbPath = process.env.DB_PATH || path.join(__dirname, 'attendance.sqlite');
-const dbDir = path.dirname(dbPath);
-if (dbDir && !fs.existsSync(dbDir)) {
-  fs.mkdirSync(dbDir, { recursive: true });
+function resolveDbPath() {
+  const preferred = process.env.DB_PATH || path.join(__dirname, 'attendance.sqlite');
+  const preferredDir = path.dirname(preferred);
+
+  try {
+    if (preferredDir && !fs.existsSync(preferredDir)) {
+      fs.mkdirSync(preferredDir, { recursive: true });
+    }
+    return preferred;
+  } catch (error) {
+    if (error && (error.code === 'EACCES' || error.code === 'EPERM')) {
+      const fallback = path.join(__dirname, 'attendance.sqlite');
+      const fallbackDir = path.dirname(fallback);
+
+      if (!fs.existsSync(fallbackDir)) {
+        fs.mkdirSync(fallbackDir, { recursive: true });
+      }
+
+      console.warn(`Cannot use DB_PATH ${preferred}; falling back to ${fallback}`);
+      return fallback;
+    }
+
+    throw error;
+  }
 }
+
+const dbPath = resolveDbPath();
 const db = new Database(dbPath);
 db.pragma('journal_mode = WAL');
 
