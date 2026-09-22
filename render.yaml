@@ -6,8 +6,14 @@ services:
     buildCommand: npm install
     startCommand: npm start
     healthCheckPath: /health
+    disk:
+      name: data
+      mountPath: /var/data
+      sizeGB: 1
     envVars:
       - key: NODE_ENV
         value: production
       - key: PORT
         value: 10000
+      - key: DB_PATH
+        value: /var/data/attendance.sqlite

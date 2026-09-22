@@ -1,10 +1,15 @@
 const Database = require('better-sqlite3');
+const fs = require('fs');
 const path = require('path');
 const { todayStr, dateStrPlusDays } = require('./utils');
 
 // On Render, set DB_PATH to a file inside your mounted persistent disk (e.g. /var/data/attendance.sqlite)
 // so streak data survives redeploys/restarts. Falls back to a local file for VPS/dev use.
 const dbPath = process.env.DB_PATH || path.join(__dirname, 'attendance.sqlite');
+const dbDir = path.dirname(dbPath);
+if (dbDir && !fs.existsSync(dbDir)) {
+  fs.mkdirSync(dbDir, { recursive: true });
+}
 const db = new Database(dbPath);
 db.pragma('journal_mode = WAL');
 
@@ -324,6 +329,10 @@ function processAbsences(guildId, dateStr, prevDateStr, monthKey) {
   return results;
 }
 
+function close() {
+  db.close();
+}
+
 module.exports = {
   MAX_SHIELDS,
   setConfig,
@@ -343,4 +352,5 @@ module.exports = {
   shieldsRemaining,
   recordAttendance,
   processAbsences,
+  close,
 };
